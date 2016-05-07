@@ -1,0 +1,4 @@
+This file deliberately doesn't list a points-to field for the
+system to discover where the payload is. What should happen is
+the system responds as if "No such file or directory"
+

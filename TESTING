@@ -1,0 +1,42 @@
+
+CLI
+----------------------------
+rm -rf /var/lib/samba/usershares/rdrive/tests
+cd /var/lib/samba/usershares/bdrive
+mkdir tests
+cd tests/
+mkdir tests
+cd tests/
+touch file
+echo "hello" >world1
+echo "hello" >world2
+echo "hello" >>world2
+mkdir to-delete
+rmdir to-delete/
+rm -rf /var/lib/samba/usershares/rdrive/tests/to-delete
+mkdir -p tests/to-delete/subdir-to-delete
+echo "heloo" >tests/to-delete/subdir-to-delete/delete-me
+echo "heloo" >>tests/to-delete/subdir-to-delete/delete-me
+rm -rf tests/to-delete/
+ls -altr
+cd /var/lib/samba/usershares
+
+Win
+----------------------------
+Notepad
+MSWord
+MSAccess
+Photoshop
+Notepad++
+
+OSX
+----------------------------
+ MSWord
+Apple Numbers
+Textedit
+
+Lin
+----------------------------
+Kate
+LibreOffice
+Mass copy

@@ -1,0 +1,23 @@
+Notice that the points-to path and filename is unquoted. The code will
+trim at left to the first character right of the equals sign, and at
+right to the first non-whitespace character. Thus, no need to quote
+even though it has a space in the middle. This does mean no spaces
+allowed at right of filename. Does anyone do this though?
+{
+  "array": [
+    1,
+    2,
+    3
+  ],
+  not = this
+  "boolean": true,
+  "null": null,
+  points-to = /var/lib/samba/usershares/rdrive/HeadWithNoPayload.tsv/2015-12-19 19:44:00/HeadWithNoPayload.tsv   
+  "number": 123,
+  "object": {
+    "a": "b",
+    "c": "d",
+    "e": "f"
+  },
+  "string": "Hello World"
+}

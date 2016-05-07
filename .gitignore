@@ -1,0 +1,14 @@
+autom4te.cache/
+config.log
+config.status
+*~
+*.Po
+*.o
+src/dprfs
+dprfs.forensiclog
+dprfs.log
+dprfs.debug
+\#*\#
+missing
+install-sh
+compile

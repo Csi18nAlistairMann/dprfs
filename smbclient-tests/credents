@@ -1,0 +1,4 @@
+#/bin/bash
+HOSTNAME="//dprfs-d5766"
+USERNAME="smb"
+PASSWORD="123"

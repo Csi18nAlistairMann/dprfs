@@ -1,0 +1,85 @@
+Inventory Gdrive used for testing DPRFS
+=======================================
+
+
+
+1. Creating a new tree
+find . -type f -name '*~' -delete
+find . -type f -name '#*#' -delete
+tree -F
+
+
+
+2. Tree as visible in Rdrive
+.
+├── CorruptedMetadata.txt/
+│   ├── 2015-12-20 16:54:00/
+│   │   └── :Fmetadata
+│   └── :latest -> 2015-12-20 16:54:00//
+├── DeletedDirectory/
+│   ├── :Dmetadata -> :Dmetadata-201512201210
+│   └── :Dmetadata-201512201210
+├── HeadWithNoPayload.tsv/
+│   ├── 2015-12-19 19:44:00/
+│   │   ├── :Fmetadata
+│   │   └── HeadWithNoPayload.tsv
+│   ├── 2015-12-19 19:45:00/
+│   │   └── :Fmetadata
+│   └── :latest -> 2015-12-19 19:45:00/
+├── INVENTORY
+├── LinkedlistFile.csv/
+│   ├── 2015-12-19 18:52:00/
+│   │   ├── :Fmetadata
+│   │   └── LinkedlistFile.csv
+│   └── :latest -> 2015-12-19 18:52:00/
+├── OrdinaryFile.txt
+├── PopulateDirectory/
+│   ├── :Dmetadata -> :Dmetadata-201512201632
+│   ├── :Dmetadata-201512201632
+│   └── UnicodeFileこんにちは世界.txt/
+│       ├── 2015-12-20 16:40:12/
+│       │   ├── :Fmetadata
+│       │   └── UnicodeFileこんにちは世界.txt
+│       └── :latest -> 2015-12-20 16:40:12/
+└── UnpopulatedDirectory/
+    ├── :Dmetadata -> :Dmetadata-201512201619
+    └── :Dmetadata-201512201619
+
+
+
+
+3. What's used for what
+  CorruptedMetadata.txt/
+If a linkedlist payload is missing, and its metadata doesn't point to
+it, Gdrive should not be able to see it.
+
+  DeletedDirectory/
+A directory that has been deleted remotely, where its metadata flags that
+fact up. Gdrive should not see this directory.
+
+  HeadWithNoPayload.tsv/
+Linkedlist where the head is only a metadata change, and points to a
+previous link for the current payload. This is cheaper in diskspace
+than copying the whole payload when it hasn't changed.
+
+  INVENTORY
+This file.
+
+  LinkedlistFile.csv/
+Ordinary linkedlist file. Visible as a file in Gdrive.
+
+  OrdinaryFile.txt
+Ordinary non linkedlist file. Should not be seen in normal operation
+as prototype will only create linkedlist files. If local user creates
+these however, they should be visible through Gdrive.
+
+  PopulatedDirectory/
+Ordinary non-empty directory demonstrating DPRFS can handle subdirectories.
+Should be visible in Gdrive.
+
+  PopulatedDirectory/UnicodeFileこんにちは世界.txt/
+DPRFS can handle unicode filenames too; should be visible with Unicode
+intact in Gdrive.
+
+  UnpopulatedDirectory/
+Ordinary empty directory, should still appear in Gdrive.

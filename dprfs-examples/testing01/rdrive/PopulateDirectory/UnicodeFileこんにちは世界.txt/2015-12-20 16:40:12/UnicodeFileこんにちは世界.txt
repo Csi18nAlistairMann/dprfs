@@ -1,0 +1,6 @@
+こんにちは世界
+Kon'nichiwa sekai
+
+"Hello world" in Japanese thank you Google translate.
+
+This file to demonstrate DPRFS Unicode-friendly.

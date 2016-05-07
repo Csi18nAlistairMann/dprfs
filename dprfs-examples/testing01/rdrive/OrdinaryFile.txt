@@ -1,0 +1,5 @@
+This is an ordinary file, just to show not all files
+in the Rdrive have to be of the linkedlist form.
+
+It should be impossible to create this file as a
+result of action in the Gdrive.
