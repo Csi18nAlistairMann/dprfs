@@ -218,8 +218,8 @@ static int fsus_getxattr(const char *gpath, const char *name, char *value,
 static int fsus_listxattr(const char *gpath, char *list, size_t size);
 static int fsus_removexattr(const char *gpath, const char *name);
 #endif
+static int fsus_recreate(const char *gpath);
 static int fsus_truncate(const char *gpath, off_t newsize);
-static int fsus_truncate_internal(const char *gpath, off_t newsize);
 static int fsus_truncate_core(const char *gpath, off_t newsize, bool reloading);
 static int fsus_truncate_core_ds(struct dpr_xlate_data *dxd, off_t newsize);
 static int fsus_truncate_core_ll(const char *gpath,

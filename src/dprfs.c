@@ -4203,9 +4203,10 @@ static int fsus_rename(const char *fulloldpath, const char *fullnewpath,
  * calls fsus_write above to dump data into it. Strictly
  * speaking that shouldn't be allowed
  */
-static int fsus_truncate_internal(const char *gpath, off_t newsize)
+static int fsus_recreate(const char *gpath)
 {
 	bool reloading = true;
+	off_t newsize = -1;
 	return fsus_truncate_core(gpath, newsize, reloading);
 }
 
@@ -4305,26 +4306,27 @@ static int fsus_truncate_core_ll(const char *gpath,
 	makeAndPopulateNewRevisionTSDir(DPR_DATA, gpath, &dxdto, &md_arr,
 					LINKEDLIST_EXTEND, PAYLOAD_LOC_SRC_NEW);
 
-	if (to_ll_revts_ll_file[0] != '\0' && newsize != 0) {
-		// truncate a previous file. Could improve by having
-		// cp(to, from, newsize)
+	if (newsize != 0) {
 		DEBUGe('3') debug_msg(DPR_DATA,
-				      " %s(): from_ll_revts_ll_file=\"%s\"\n",
-				      __func__, from_ll_revts_ll_file);
-		DEBUGe('3') debug_msg(DPR_DATA,
-				      " %s: to_ll_revts_ll_file=\"%s\"\n",
-				      __func__, to_ll_revts_ll_file);
-
-		cp(to_ll_revts_ll_file, from_ll_revts_ll_file);
-		rv = truncate(to_ll_revts_ll_file, newsize);
+				      " %s(): cp from=\"%s\" to=\"%s\"\n",
+				      __func__, from_ll_revts_ll_file,
+				      to_ll_revts_ll_file);
+		rv = cp(to_ll_revts_ll_file, from_ll_revts_ll_file);
+		if (newsize > 0) {
+			DEBUGe('3') debug_msg(DPR_DATA,
+					      " %s(): truncate sz=\"%d\"\n",
+					      __func__, newsize,
+					      to_ll_revts_ll_file);
+			rv = truncate(to_ll_revts_ll_file, newsize);
+		}
 
 	} else {
 		getLinkedlistLatestLinkedlistFile(ll_l_ll_file, dxdto);
 
-		// no previous file
 		DEBUGe('3') debug_msg(DPR_DATA,
-				      " %s: to ll_l_ll_file=\"%s\"\n",
+				      " %s(): make zero len file \"%s\"\n",
 				      __func__, ll_l_ll_file);
+
 		fp = fopen(ll_l_ll_file, "w");
 		if (fp == NULL)
 			rv = dpr_error("dpr_truncate_core_ll creat");
@@ -4518,7 +4520,7 @@ fsus_write(const char *gpath, const char *buf, size_t size, off_t offset,
 		     " reload required for \"%s\")\n", gpath);
 
 		fsus_flush(gpath, fi);
-		fsus_truncate_internal(gpath, offset);
+		fsus_recreate(gpath);
 		fsus_open_shadow(gpath, fi);
 
 		// have reopened a new file so no more need to reload at
@@ -5810,7 +5812,7 @@ fsus_ftruncate(const char *gpath, off_t offset, struct fuse_file_info *fi)
 		    (DPR_DATA, " reload required for \"%s\")\n", gpath);
 
 		fsus_flush(gpath, fi);
-		fsus_truncate_internal(gpath, offset);
+		fsus_recreate(gpath);
 		oldflags = fi->flags;
 		fi->flags = O_LARGEFILE | O_CREAT | O_RDWR;
 		fsus_open_shadow(gpath, fi);
@@ -6051,7 +6053,7 @@ static int xmp_write_buf(const char *gpath, struct fuse_bufvec *buf,
 		     " reload required for \"%s\")\n", gpath);
 
 		fsus_flush(gpath, fi);
-		fsus_truncate_internal(gpath, offset);
+		fsus_recreate(gpath);
 		fsus_open_shadow(gpath, fi);
 
 		// have reopened a new file so no more need to reload at
@@ -6224,7 +6226,6 @@ static struct fuse_operations xmp_oper = {
 	.flock = fsus_flock,	//?
 	.read_buf = xmp_read_buf,	//?
 	.write_buf = xmp_write_buf,	//?
-
 };
 
 // OMGWTFBBQ
