@@ -1,0 +1,14 @@
+Alistair Mann <al+dprfs@pectw.net>
+
+===============================================================
+DPRFS is based on the BBFS code from:
+
+Joseph J. Pfeiffer, Jr. <pfeiffer@cs.nmsu.edu>
+As published at http://www.cs.nmsu.edu/~pfeiffer/fuse-tutorial/
+
+
+And on the fusexmp_fh.c example from:
+
+Miklos Szeredi <miklos@szeredi.hu>
+Sebastian Pipping <sebastian@pipping.org>
+As published at https://github.com/libfuse/libfuse
