@@ -1294,27 +1294,20 @@ static void dxd_copy(struct dpr_xlate_data *to, struct dpr_xlate_data *from)
 	strcpy(to->timestamp, from->timestamp);
 }
 
+// Mode bodges
+// http://stackoverflow.com/questions/737673/how-to-read-the-mode-field-of-git-ls-trees-output
+// 0100xxx refers to a regular file
 // Fake the samba permissions
 static mode_t getModeBodge()
 {
 	// not when I switch into MAXIMUM OVER-BODGE
 	return 0100744;
-	// 744 I recognise, but what's 100?
-	// http://stackoverflow.com/questions/5337070/how-can-i-get-a-files-permission-mask
-	// suggests the upper bit can be ignored. Why 744 and not
-	// 644? Samba has been creating with 0100744 so I'll review
-	// when I go back to look at hardening stock samba.
 }
 
 static mode_t getDefaultDirMode()
 {
 	// not when I switch into MAXIMUM OVER-BODGE
 	return 0100770;
-	// 744 I recognise, but what's 100?
-	// http://stackoverflow.com/questions/5337070/how-can-i-get-a-files-permission-mask
-	// suggests the upper bit can be ignored. Why 744 and not
-	// 644? Samba has been creating with 0100744 so I'll review
-	// when I go back to look at hardening stock samba.
 }
 
 /*
