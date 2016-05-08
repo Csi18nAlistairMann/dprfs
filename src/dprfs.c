@@ -328,7 +328,6 @@ ea_shadowFile_removeElementByIndex(struct dpr_state *dpr_data, int index)
 {
 	DEBUGe('2') debug_msg
 	    (dpr_data, "%s() called to remove \"%d\"\n", __func__, index);
-	DEBUGe('3') forensiclog_msg(" Removing index %d\n", index);
 
 	free(dpr_data->shadowFile_arr.array[index]);
 	dpr_data->shadowFile_arr.array[index] = NULL;
@@ -505,7 +504,6 @@ ea_filetype_removeElementByIndex(struct dpr_state *dpr_data, int index)
 	DEBUGe('2') debug_msg
 	    (dpr_data, "%s() called to remove filetype for fd=\"%d\"\n",
 	     __func__, index);
-	DEBUGe('3') forensiclog_msg(" Removing index %d\n", index);
 
 	key = dpr_data->filetype_arr.array[index]->key;
 	val = dpr_data->filetype_arr.array[index]->value;
@@ -786,7 +784,6 @@ static void ea_flarrs_addElement(struct dpr_state *dpr_data, const char *paf)
 	int idx;
 	int a;
 
-	DEBUGe('3') forensiclog_msg("  + fl_arr[\"%s\"])\n", paf);
 	DEBUGe('2') debug_msg(dpr_data,
 			      "%s() called to add \"%s\"\n", __func__, paf);
 
@@ -841,7 +838,6 @@ ea_flarrs_removeElementByIndex(struct dpr_state *dpr_data, int index)
 {
 	DEBUGe('2') debug_msg
 	    (dpr_data, "%s() called to remove \"%d\"\n", __func__, index);
-	DEBUGe('3') forensiclog_msg(" Removing index %d\n", index);
 
 	free(dpr_data->fl_arr.array[index]);
 	dpr_data->fl_arr.array[index] = NULL;
@@ -865,7 +861,6 @@ ea_flarrs_removeElementByValue(struct dpr_state *dpr_data, const char *paf)
 		if (strcmp(dpr_data->fl_arr.array[a]->paf, paf) != 0)
 			continue;
 
-		DEBUGe('3') forensiclog_msg("  - fl_arr[\"%s\"])\n", paf);
 		ea_flarrs_removeElementByIndex(dpr_data, a);
 	} while (++a < dpr_data->fl_arr.array_max);
 }
@@ -1009,8 +1004,8 @@ forensicLogChangesApplied(struct dpr_state *dpr_data, const char *gpath)
 		}
 		if (dpr_data->fl_arr.array[a]->counts[TRUNCATE_KEY] != 0) {
 			sprintf(result, "truncate: %lu ",
-				dpr_data->fl_arr.
-				array[a]->counts[TRUNCATE_KEY]);
+				dpr_data->fl_arr.array[a]->
+				counts[TRUNCATE_KEY]);
 			strcat(logline, result);
 		}
 		if (dpr_data->fl_arr.array[a]->counts[UTIME_KEY] != 0) {
@@ -1040,20 +1035,20 @@ forensicLogChangesApplied(struct dpr_state *dpr_data, const char *gpath)
 		}
 		if (dpr_data->fl_arr.array[a]->counts[SETXATTR_KEY] != 0) {
 			sprintf(result, "setxattr: %lu ",
-				dpr_data->fl_arr.
-				array[a]->counts[SETXATTR_KEY]);
+				dpr_data->fl_arr.array[a]->
+				counts[SETXATTR_KEY]);
 			strcat(logline, result);
 		}
 		if (dpr_data->fl_arr.array[a]->counts[REMOVEXATTR_KEY] != 0) {
 			sprintf(result, "removexattr: %lu ",
-				dpr_data->fl_arr.
-				array[a]->counts[REMOVEXATTR_KEY]);
+				dpr_data->fl_arr.array[a]->
+				counts[REMOVEXATTR_KEY]);
 			strcat(logline, result);
 		}
 		if (dpr_data->fl_arr.array[a]->counts[FALLOCATE_KEY] != 0) {
 			sprintf(result, "fallocate: %lu ",
-				dpr_data->fl_arr.
-				array[a]->counts[FALLOCATE_KEY]);
+				dpr_data->fl_arr.array[a]->
+				counts[FALLOCATE_KEY]);
 			strcat(logline, result);
 		}
 		/*
@@ -1063,8 +1058,8 @@ forensicLogChangesApplied(struct dpr_state *dpr_data, const char *gpath)
 		if (logline[0] != '\0') {
 			if (dpr_data->fl_arr.array[a]->counts[FLUSH_KEY] != 0) {
 				sprintf(result, "flush: %lu ",
-					dpr_data->fl_arr.
-					array[a]->counts[FLUSH_KEY]);
+					dpr_data->fl_arr.array[a]->
+					counts[FLUSH_KEY]);
 				strcat(logline, result);
 			}
 		}
@@ -1192,7 +1187,6 @@ static void ea_str_removeElementByIndex(struct dpr_state *dpr_data, int index)
 {
 	DEBUGe('2') debug_msg
 	    (dpr_data, "%s() called to remove \"%d\"\n", __func__, index);
-	DEBUGe('3') forensiclog_msg(" Removing index %d\n", index);
 
 	free(dpr_data->pr_arr.array[index]);
 	dpr_data->pr_arr.array[index] = NULL;
@@ -1216,7 +1210,6 @@ static void ea_str_removeElementByValue(struct dpr_state *dpr_data,
 		if (strcmp(dpr_data->pr_arr.array[a], paf) != 0)
 			continue;
 
-		DEBUGe('3') forensiclog_msg("  - pr_arr[\"%s\"])\n", paf);
 		ea_str_removeElementByIndex(dpr_data, a);
 	} while (++a < dpr_data->pr_arr.array_max);
 }
@@ -2760,7 +2753,7 @@ dpr_xlateWholePath(struct dpr_xlate_data *dxd, struct dpr_state *dpr_data,
 		cleaned = cleaned + dpr_data->rootdir_len;
 
 	dpr_cleanedXlateWholePath(dxd, dpr_data, cleaned, ignoreState,
-					 depth, original_paf);
+				  depth, original_paf);
 	return;
 }
 
@@ -3257,7 +3250,6 @@ fsus_create_core(const char *gpath, mode_t mode, struct fuse_file_info *fi,
 	struct dpr_xlate_data dxd = DXD_INIT;
 	int rv;
 
-	DEBUGe('3') forensiclog_msg("  ->fsus_create_core()\n");
 	DEBUGe('2') debug_msg(DPR_DATA, LOG_DIVIDER
 			      "%s(gpath=\"%s\", mode=0%03o)\n",
 			      __func__, gpath, mode);
@@ -3292,7 +3284,6 @@ fsus_create_core(const char *gpath, mode_t mode, struct fuse_file_info *fi,
 	rv = 0;
 	DEBUGe('2') debug_msg(DPR_DATA,
 			      "  %s completes, rv=\"%d\"\n\n", __func__, rv);
-	DEBUGe('3') forensiclog_msg("  <-fsus_create_core()\n");
 
 	return rv;
 }
@@ -3322,8 +3313,9 @@ static int fsus_create_core_ds(struct dpr_xlate_data *dxd, mode_t mode,
 		getPafForFinalPathWithOsxBodge(accdb, *dxd);
 		if (symlink(accdb, paf) == -1) {
 			DEBUGe('2') debug_msg
-				(DPR_DATA,
-				 "  %s() unable to symlink target=\"%s\" to paf=\"%s\"\n", __func__, accdb, paf);
+			    (DPR_DATA,
+			     "  %s() unable to symlink target=\"%s\" to paf=\"%s\"\n",
+			     __func__, accdb, paf);
 			rv = -1;
 			goto error;
 		}
@@ -3530,7 +3522,6 @@ static int fsus_unlink(const char *gpath)
 	struct dpr_xlate_data dxd = DXD_INIT;
 	int rv;
 
-	DEBUGe('3') forensiclog_msg("  ->fsus_unlink()\n");
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      LOG_DIVIDER "%s(gpath=\"%s\"\n", __func__, gpath);
 	forensicLogChangesComing(DPR_DATA, UNLINK_KEY, gpath);
@@ -3552,7 +3543,6 @@ static int fsus_unlink(const char *gpath)
 	}
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s completes, rv=\"%d\"\n\n", __func__, rv);
-	DEBUGe('3') forensiclog_msg("  <-fsus_unlink()\n");
 	return rv;
 }
 
@@ -4063,7 +4053,6 @@ static int fsus_rename(const char *fulloldpath, const char *fullnewpath,
 	int type = DPRFS_FILETYPE_NA;
 	int rv = 0;
 
-	DEBUGe('3') forensiclog_msg("  ->fsus_rename()\n");
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      LOG_DIVIDER
 			      "%s(oldpath=\"%s\", newpath=\"%s\")\n",
@@ -4192,7 +4181,6 @@ static int fsus_rename(const char *fulloldpath, const char *fullnewpath,
  complete:
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s(): completes, rv=\"%d\"\n\n", __func__, rv);
-	DEBUGe('3') forensiclog_msg("  <-fsus_rename()\n");
 	return rv;
 }
 
@@ -4232,7 +4220,6 @@ static int fsus_truncate_core(const char *gpath, off_t newsize, bool reloading)
 	struct dpr_xlate_data dxdfrom = DXD_INIT;
 	int rv;
 
-	DEBUGe('3') forensiclog_msg("  ->dpr_truncate()\n");
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      LOG_DIVIDER
 			      "%s(gpath=\"%s\" size=\"%d\"\n", __func__, gpath,
@@ -4263,7 +4250,6 @@ static int fsus_truncate_core(const char *gpath, off_t newsize, bool reloading)
 	}
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s() completes, rv=\"%d\"\n\n", __func__, rv);
-	DEBUGe('3') forensiclog_msg("  <-dpr_truncate()\n");
 
 	return rv;
 }
@@ -4397,7 +4383,6 @@ fsus_open_core(const char *gpath, struct fuse_file_info *fi, bool useShadowFD)
 	char ll_l_ll_file[PATH_MAX] = "";
 	int fp;
 
-	DEBUGe('3') forensiclog_msg("  ->fsus_open()\n");
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      LOG_DIVIDER "%s(gpath\"%s\", fi=0x%08x)\n",
 			      __func__, gpath, fi);
@@ -4411,8 +4396,8 @@ fsus_open_core(const char *gpath, struct fuse_file_info *fi, bool useShadowFD)
 		getPafForOrdinaryFile(ll_l_ll_file, dxd);
 
 	DEBUGe('2') debug_msg(DPR_DATA,
-			      " %s(): linkedlist_paf=\"%s\" flags=\"%d\"\n", __func__,
-			      ll_l_ll_file, fi->flags);
+			      " %s(): linkedlist_paf=\"%s\" flags=\"%d\"\n",
+			      __func__, ll_l_ll_file, fi->flags);
 	fp = open(ll_l_ll_file, fi->flags, getModeBodge());
 
 	DEBUGe('2') debug_msg
@@ -4438,7 +4423,6 @@ fsus_open_core(const char *gpath, struct fuse_file_info *fi, bool useShadowFD)
  finish:
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s() completes, fp=\"%d\"\n\n", __func__, fp);
-	DEBUGe('3') forensiclog_msg("  <-fsus_open()\n");
 	return fp;
 }
 
@@ -4473,7 +4457,6 @@ fsus_read(const char *gpath, char *buf, size_t size, off_t offset,
 {
 	int rv;
 
-	DEBUGe('3') forensiclog_msg("  ->fsus_read()\n");
 	DEBUGe('1') debug_msg
 	    (DPR_DATA, LOG_DIVIDER
 	     "%s(gpath=\"%s\", buf=0x%08x, size=%d, offset=%lld, fd=\"%"
@@ -4486,7 +4469,6 @@ fsus_read(const char *gpath, char *buf, size_t size, off_t offset,
 	if (rv == -1)
 		rv = dpr_error("fsus_read read");
 
-	DEBUGe('3') forensiclog_msg("  <-fsus_read()\n");
 	return rv;
 }
 
@@ -4511,7 +4493,6 @@ fsus_write(const char *gpath, const char *buf, size_t size, off_t offset,
 	unsigned int filetype;
 	int rv;
 
-	DEBUGe('3') forensiclog_msg("  ->fsus_write()\n");
 	DEBUGe('1') debug_msg
 	    (DPR_DATA,
 	     LOG_DIVIDER "%s() entry gpath=\"%s\" fd=\"%" PRIu64
@@ -4562,7 +4543,6 @@ fsus_write(const char *gpath, const char *buf, size_t size, off_t offset,
 
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s() completes, rv=\"%d\"\n\n", __func__, rv);
-	DEBUGe('3') forensiclog_msg("  <-fsus_write()\n");
 	return rv;
 }
 
@@ -4623,7 +4603,6 @@ static int fsus_flush(const char *gpath, struct fuse_file_info *fi)
 			      PRIu64 "\")\n\n", __func__, gpath,
 			      ea_shadowFile_getValueOrKey(DPR_DATA, fi));
 
-	DEBUGe('3') forensiclog_msg("  <>fsus_flush()\n");
 	return 0;
 }
 
@@ -4649,7 +4628,6 @@ static int fsus_release(const char *gpath, struct fuse_file_info *fi)
 	int len;
 	int rv;
 
-	DEBUGe('3') forensiclog_msg("  ->fsus_release()\n");
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      LOG_DIVIDER
 			      "%s(gpath=\"%s\" fd=\"%" PRIu64 "\")\n",
@@ -4686,7 +4664,6 @@ static int fsus_release(const char *gpath, struct fuse_file_info *fi)
 
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s completes, rv=\"%d\"\n\n", __func__, rv);
-	DEBUGe('3') forensiclog_msg("  <-fsus_release()\n");
 	return rv;
 }
 
@@ -4706,7 +4683,6 @@ static void backupDatastore(const char *gpath)
 	char *p = NULL;
 	size_t len;
 
-	DEBUGe('3') forensiclog_msg("  ->backupDatastore()\n");
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      LOG_DIVIDER "%s(gpath=\"%s\")\n",
 			      __func__, gpath);
@@ -4764,7 +4740,6 @@ static void backupDatastore(const char *gpath)
 		cp(destpaf, sourcepaf);
 	}
 	DEBUGe('1') debug_msg(DPR_DATA, "  %s() completes\n", __func__);
-	DEBUGe('3') forensiclog_msg("  <-backupDatastore()\n");
 }
 
 /////////////////////////////////////
@@ -4809,7 +4784,6 @@ fsus_mkdir_core(struct dpr_state *dpr_data, const char *gpath, mode_t mode,
 	char ll_name[PATH_MAX] = "";
 	int rv = 0;
 
-	DEBUGe('3') forensiclog_msg("  ->dpr_mkdir()\n");
 	DEBUGe('1') debug_msg(DPR_DATA, LOG_DIVIDER "%s(gpath=\"%s\")\n",
 			      __func__, gpath);
 
@@ -4838,7 +4812,6 @@ fsus_mkdir_core(struct dpr_state *dpr_data, const char *gpath, mode_t mode,
 
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s completes, rv=\"%d\"\n\n", __func__, rv);
-	DEBUGe('3') forensiclog_msg("  <-dpr_mkdir()\n");
 	return rv;
 }
 
@@ -4861,7 +4834,6 @@ static int fsus_rmdir(const char *gpath)
 	struct dpr_xlate_data dxd = DXD_INIT;
 	int rv;
 
-	DEBUGe('3') forensiclog_msg("  ->fsus_rmdir()\n");
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      LOG_DIVIDER "%s(gpath=\"%s\"\n", __func__, gpath);
 
@@ -4876,7 +4848,6 @@ static int fsus_rmdir(const char *gpath)
 
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s completes, rv=\"%d\"\n\n", __func__, rv);
-	DEBUGe('3') forensiclog_msg("  <-fsus_rmdir()\n");
 	return rv;
 }
 
@@ -4899,7 +4870,6 @@ static int fsus_opendir(const char *gpath, struct fuse_file_info *fi)
 	if (d == NULL)
 		return -ENOMEM;
 
-	DEBUGe('3') forensiclog_msg("  ->fsus_opendir()\n");
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      LOG_DIVIDER "%s(gpath=\"%s\")\n",
 			      __func__, gpath);
@@ -4938,7 +4908,6 @@ static int fsus_opendir(const char *gpath, struct fuse_file_info *fi)
 			      __func__, fi->fh, rv, d->dp, d->shadow_dp);
 	DEBUGe('1') debug_msg(DPR_DATA, "  %s() completes, rv=\"%d\"\n\n",
 			      __func__, rv);
-	DEBUGe('3') forensiclog_msg("  <-fsus_opendir()\n");
 	return 0;
 }
 
@@ -4983,7 +4952,6 @@ fsus_readdir(const char *gpath, void *buf, fuse_fill_dir_t filler,
 	int rv;
 	(void)gpath;
 
-	DEBUGe('3') forensiclog_msg("  ->fsus_readdir()\n");
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      LOG_DIVIDER
 			      "%s(gpath=\"%s\" offset=\"%d\" lookit=\"%d\")\n",
@@ -5273,7 +5241,6 @@ fsus_readdir(const char *gpath, void *buf, fuse_fill_dir_t filler,
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "%s() completes, rv=\"%d\" offset=\"%d\" shadow_offset=\"%d\"\n\n",
 			      __func__, rv, d->offset, d->shadow_offset);
-	DEBUGe('3') forensiclog_msg("  <-fsus_readdir()\n");
 	return rv;
 }
 
@@ -5291,7 +5258,6 @@ static int fsus_releasedir(const char *gpath, struct fuse_file_info *fi)
 	(void)gpath;
 
 	rv = 0;
-	DEBUGe('3') forensiclog_msg("  ->fsus_releasedir()\n");
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      LOG_DIVIDER "%s(gpath=\"%s\")\n",
 			      __func__, gpath);
@@ -5307,7 +5273,6 @@ static int fsus_releasedir(const char *gpath, struct fuse_file_info *fi)
 
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s() completes, rv=\"%d\"\n\n", __func__, rv);
-	DEBUGe('3') forensiclog_msg("  <-fsus_releasedir()\n");
 	return rv;
 }
 
@@ -5333,7 +5298,6 @@ static int fsus_readlink(const char *gpath, char *link, size_t size)
 	char ll_name[PATH_MAX] = "";
 	int rv;
 
-	DEBUGe('3') forensiclog_msg("  ->fsus_readlink()\n");
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      LOG_DIVIDER "%s(gpath=\"%s\")\n",
 			      __func__, gpath);
@@ -5354,7 +5318,6 @@ static int fsus_readlink(const char *gpath, char *link, size_t size)
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s() completes, link=\"%s\" rv=\"%d\"\n\n",
 			      __func__, link, rv);
-	DEBUGe('3') forensiclog_msg("  <-fsus_readlink()\n");
 	return rv;
 }
 
@@ -5375,7 +5338,6 @@ static int fsus_symlink(const char *gpath, const char *link)
 	char ll_name2[PATH_MAX] = "";
 	int rv;
 
-	DEBUGe('3') forensiclog_msg("  ->fsus_symlink()\n");
 	forensiclog_msg("symlink: %s -> %s\n", link, gpath);
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      LOG_DIVIDER "%s(gpath=\"%s\")\n",
@@ -5400,7 +5362,6 @@ static int fsus_symlink(const char *gpath, const char *link)
 
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s() completes, rv=\"%d\"\n\n", __func__, rv);
-	DEBUGe('3') forensiclog_msg("  <->fsus_symlink()\n");
 	return rv;
 }
 
@@ -5415,7 +5376,6 @@ static int fsus_link(const char *gpath, const char *newpath)
 	char new_ll_name[PATH_MAX] = "";
 	int rv;
 
-	DEBUGe('3') forensiclog_msg("  ->fsus_link()\n");
 	forensiclog_msg("(hard)link: %s -> %s\n", newpath, gpath);
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      LOG_DIVIDER "%s(gpath=\"%s\")\n", __func__,
@@ -5439,7 +5399,6 @@ static int fsus_link(const char *gpath, const char *newpath)
 
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s completes, rv=\"%d\"\n\n", __func__, rv);
-	DEBUGe('3') forensiclog_msg("  <-fsus_link()\n");
 	return rv;
 }
 
@@ -5466,7 +5425,6 @@ static int fsus_getattr(const char *gpath, struct stat *statbuf)
 	char ll_l_ll_file[PATH_MAX] = "";
 	int rv;
 
-	DEBUGe('3') forensiclog_msg("  ->fsus_getattr()\n");
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      LOG_DIVIDER "%s() entry: gpath2=\"%s\"\n",
 			      __func__, gpath2);
@@ -5499,7 +5457,6 @@ static int fsus_getattr(const char *gpath, struct stat *statbuf)
 
 	DEBUGe('1') debug_msg(DPR_DATA, "%s() exit, rv=\"%d\"\n\n", __func__,
 			      rv);
-	DEBUGe('3') forensiclog_msg("  <-fsus_getattr()\n");
 	return rv;
 }
 
@@ -5509,7 +5466,6 @@ static int fsus_chmod(const char *gpath, mode_t mode)
 	struct dpr_xlate_data dxd = DXD_INIT;
 	int rv;
 
-	DEBUGe('3') forensiclog_msg("  ->fsus_chmod()\n");
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      LOG_DIVIDER
 			      "%s(gpath=\"%s\", mode=0%03o)\n",
@@ -5522,7 +5478,7 @@ static int fsus_chmod(const char *gpath, mode_t mode)
 	if (dxd.dprfs_filetype == DPRFS_FILETYPE_LL) {
 		rv = fsus_chmod_ll(&dxd, mode);
 
-	} else if (dxd.dprfs_filetype == DPRFS_FILETYPE_DS 
+	} else if (dxd.dprfs_filetype == DPRFS_FILETYPE_DS
 		   || dxd.dprfs_filetype == DPRFS_FILETYPE_DIR) {
 		rv = fsus_chmod_ds(&dxd, mode);
 
@@ -5534,7 +5490,6 @@ static int fsus_chmod(const char *gpath, mode_t mode)
 	}
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s() completes, rv=\"%d\"\n\n", __func__, rv);
-	DEBUGe('3') forensiclog_msg("  <-fsus_chmod()\n");
 	return rv;
 }
 
@@ -5573,7 +5528,6 @@ static int fsus_chown(const char *gpath, uid_t uid, gid_t gid)
 	char ll_name[PATH_MAX] = "";
 	int rv;
 
-	DEBUGe('3') forensiclog_msg("  ->fsus_chown()\n");
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      LOG_DIVIDER "%s(gpath=\"%s\")\n", __func__,
 			      gpath);
@@ -5592,7 +5546,6 @@ static int fsus_chown(const char *gpath, uid_t uid, gid_t gid)
 
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s() completes, rv=\"%d\"\n\n", __func__, rv);
-	DEBUGe('3') forensiclog_msg("  <-fsus_chown()\n");
 	return rv;
 }
 
@@ -5649,7 +5602,6 @@ static int fsus_access(const char *gpath, int mask)
 	char ll_name[PATH_MAX] = "";
 	int rv;
 
-	DEBUGe('3') forensiclog_msg("  ->fsus_access()\n");
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      LOG_DIVIDER "%s(gpath=\"%s\")\n", __func__,
 			      gpath);
@@ -5665,7 +5617,6 @@ static int fsus_access(const char *gpath, int mask)
 
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s() completes, rv=\"%d\"\n\n", __func__, rv);
-	DEBUGe('3') forensiclog_msg("  ->fsus_access()\n");
 	return rv;
 }
 
@@ -5838,7 +5789,6 @@ fsus_ftruncate(const char *gpath, off_t offset, struct fuse_file_info *fi)
 	int oldflags;
 	int rv;
 
-	DEBUGe('3') forensiclog_msg("  ->fsus_ftruncate()\n");
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      LOG_DIVIDER "%s(gpath=\"%s\")\n",
 			      __func__, gpath);
@@ -5885,7 +5835,6 @@ fsus_ftruncate(const char *gpath, off_t offset, struct fuse_file_info *fi)
 
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s() completes, rv=\"%d\"\n\n", __func__, rv);
-	DEBUGe('3') forensiclog_msg("  <-fsus_ftruncate()\n");
 	return rv;
 }
 
@@ -5943,7 +5892,6 @@ static int fsus_mknod(const char *gpath, mode_t mode, dev_t dev)
 	char ll_name[PATH_MAX] = "";
 	int rv;
 
-	DEBUGe('3') forensiclog_msg("  ->fsus_mknod()\n");
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      LOG_DIVIDER "%s(gpath=\"%s\")\n", __func__,
 			      gpath);
@@ -5982,7 +5930,6 @@ static int fsus_mknod(const char *gpath, mode_t mode, dev_t dev)
 
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s() completes, rv=\"%d\"\n\n", __func__, rv);
-	DEBUGe('3') forensiclog_msg("  <-fsus_mknod()\n");
 	return rv;
 }
 
@@ -5992,7 +5939,6 @@ static int fsus_utimens(const char *gpath, const struct timespec ts[2])
 	struct dpr_xlate_data dxd = DXD_INIT;
 	int rv;
 
-	DEBUGe('3') forensiclog_msg("  ->fsus_utime()\n");
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      LOG_DIVIDER "%s(gpath=\"%s\")\n", __func__,
 			      gpath);
@@ -6012,7 +5958,6 @@ static int fsus_utimens(const char *gpath, const struct timespec ts[2])
 				      __func__, dxd.dprfs_filetype);
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s completes, rv=\"%d\"\n\n", __func__, rv);
-	DEBUGe('3') forensiclog_msg("  <-fsus_utime()\n");
 	return rv;
 }
 
@@ -6055,7 +6000,6 @@ static int xmp_read_buf(const char *gpath, struct fuse_bufvec **bufp,
 	struct fuse_bufvec *src;
 	(void)gpath;
 
-	DEBUGe('3') forensiclog_msg("  ->fsus_xmp_read_buf()\n");
 	DEBUGe('2') debug_msg(DPR_DATA, LOG_DIVIDER "%s()\n", __func__);
 
 	src = malloc(sizeof(struct fuse_bufvec));
@@ -6083,7 +6027,6 @@ static int xmp_write_buf(const char *gpath, struct fuse_bufvec *buf,
 
 	filetype = ea_filetype_getValueForKey(DPR_DATA, fi);
 
-	DEBUGe('3') forensiclog_msg("  ->xmp_write_buf()\n");
 	DEBUGe('1') debug_msg
 	    (DPR_DATA,
 	     LOG_DIVIDER "%s() entry gpath=\"%s\" fd=\"%" PRIu64
@@ -6136,7 +6079,6 @@ static int xmp_write_buf(const char *gpath, struct fuse_bufvec *buf,
 
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s() completes, rv=\"%d\"\n\n", __func__, rv);
-	DEBUGe('3') forensiclog_msg("  <-xmp_write_buf()\n");
 	return rv;
 }
 
@@ -6146,7 +6088,6 @@ static int fsus_fallocate(const char *gpath, int mode,
 {
 	(void)gpath;
 
-	DEBUGe('3') forensiclog_msg("  ->fsus_fallocate()\n");
 	DEBUGe('2') debug_msg(DPR_DATA, LOG_DIVIDER "%s()\n", __func__);
 	/* forensicLogChangesComing(DPR_DATA, FALLOCATE_KEY, gpath); */
 
@@ -6164,7 +6105,6 @@ static int fsus_lock(const char *path, struct fuse_file_info *fi, int cmd,
 {
 	(void)path;
 
-	DEBUGe('3') forensiclog_msg("  ->fsus_lock()\n");
 	DEBUGe('2') debug_msg(DPR_DATA, LOG_DIVIDER "%s()\n\n", __func__);
 
 	return ulockmgr_op(ea_shadowFile_getValueOrKey(DPR_DATA, fi), cmd, lock,
@@ -6177,7 +6117,6 @@ static int fsus_flock(const char *path, struct fuse_file_info *fi, int op)
 	int res;
 	(void)path;
 
-	DEBUGe('3') forensiclog_msg("  ->fsus_flock()\n");
 	DEBUGe('2') debug_msg(DPR_DATA, LOG_DIVIDER "%s()\n\n", __func__);
 
 	res = flock(ea_shadowFile_getValueOrKey(DPR_DATA, fi), op);
