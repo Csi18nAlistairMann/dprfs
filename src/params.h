@@ -59,7 +59,7 @@
 #define BEYOND_USE_COUNTERS_RELPAF BEYOND_USE_RELPATH "/" BEYOND_USE_COUNTERS_FILENAME
 
 // now I feel dirty
-#define BODGE_WD "/home/smb/dprfs/src"
+#define BODGE_WD "/home/smb/dprfs_v1/src"
 #define ACCESS_DENIED_FILE "access-denied-file"
 #define ACCESS_DENIED_DIR "access-denied-dir"
 #define LATEST_FILENAME ":latest"
