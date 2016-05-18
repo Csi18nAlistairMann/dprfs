@@ -826,6 +826,7 @@ static void ea_flarrs_addElement(struct dpr_state *dpr_data, const char *paf)
 	ptr->counts[SETXATTR_KEY] = 0;
 	ptr->counts[REMOVEXATTR_KEY] = 0;
 	ptr->counts[FALLOCATE_KEY] = 0;
+	ptr->counts[RECREATE_KEY] = 0;
 	dpr_data->fl_arr.array[idx] = ptr;
 
 	DEBUGe('2') debug_msg(dpr_data,
@@ -939,6 +940,8 @@ forensicLogChangesComing(struct dpr_state *dpr_data, unsigned long index,
 			forensiclog_msg("removexattr: %s\n", gpath);
 		else if (index == FALLOCATE_KEY)
 			forensiclog_msg("fallocate: %s\n", gpath);
+		else if (index == RECREATE_KEY)
+			forensiclog_msg("recreate: %s\n", gpath);
 	}
 }
 
@@ -1049,6 +1052,12 @@ forensicLogChangesApplied(struct dpr_state *dpr_data, const char *gpath)
 			sprintf(result, "fallocate: %lu ",
 				dpr_data->fl_arr.array[a]->
 				counts[FALLOCATE_KEY]);
+			strcat(logline, result);
+		}
+		if (dpr_data->fl_arr.array[a]->counts[RECREATE_KEY] != 0) {
+			sprintf(result, "recreate: %lu ",
+				dpr_data->fl_arr.array[a]->
+				counts[RECREATE_KEY]);
 			strcat(logline, result);
 		}
 		/*
@@ -4218,16 +4227,13 @@ static int fsus_truncate_core(const char *gpath, off_t newsize, bool reloading)
 			      LOG_DIVIDER
 			      "%s(gpath=\"%s\" size=\"%d\"\n", __func__, gpath,
 			      (long)newsize);
-	if (!reloading)
-		forensicLogChangesComing(DPR_DATA, TRUNCATE_KEY, gpath);
 
-	if ((long)newsize != 0) {
-		DEBUGe('2') debug_msg
-		    (DPR_DATA,
-		     "[WARNING] truncate: newsize not zero but \"%d\"\n",
-		     newsize);
-	}
-	// log and obtain the paf to truncate
+	if (reloading == false)
+		forensicLogChangesComing(DPR_DATA, TRUNCATE_KEY, gpath);
+	else
+		/* Copying old to new would change modified time */
+		forensicLogChangesComing(DPR_DATA, RECREATE_KEY, gpath);
+
 	dpr_xlateWholePath(&dxdfrom, DPR_DATA, gpath, false, XWP_DEPTH_MAX,
 			   NULL);
 	if (dxdfrom.dprfs_filetype == DPRFS_FILETYPE_LL) {
@@ -4512,7 +4518,6 @@ fsus_write(const char *gpath, const char *buf, size_t size, off_t offset,
 		    (DPR_DATA, LOG_DIVIDER
 		     " reload required for \"%s\")\n", gpath);
 
-		fsus_flush(gpath, fi);
 		fsus_recreate(gpath);
 		fsus_open_shadow(gpath, fi);
 
@@ -5791,6 +5796,7 @@ fsus_ftruncate(const char *gpath, off_t offset, struct fuse_file_info *fi)
 	filetype = ea_filetype_getValueForKey(DPR_DATA, fi);
 	DEBUGe('1') debug_msg
 	    (DPR_DATA, "%s() filetype \"%d\"\n", __func__, filetype);
+
 	// might need to reload?
 	if (filetype == DPRFS_FILETYPE_LL
 	    && ea_str_getValueForKey(DPR_DATA, gpath) != NULL) {
@@ -5804,7 +5810,6 @@ fsus_ftruncate(const char *gpath, off_t offset, struct fuse_file_info *fi)
 		DEBUGe('2') debug_msg
 		    (DPR_DATA, " reload required for \"%s\")\n", gpath);
 
-		fsus_flush(gpath, fi);
 		fsus_recreate(gpath);
 		oldflags = fi->flags;
 		fi->flags = O_LARGEFILE | O_CREAT | O_RDWR;
@@ -5815,9 +5820,6 @@ fsus_ftruncate(const char *gpath, off_t offset, struct fuse_file_info *fi)
 		// next write
 		ea_str_removeElementByValue(DPR_DATA, gpath);
 	}
-	// logging after so it's clear when the actual write happens,
-	// which is some time after entering the routine given we may
-	// need to reload
 	forensicLogChangesComing(DPR_DATA, TRUNCATE_KEY, gpath);
 
 	DEBUGe('3') debug_msg
@@ -6045,7 +6047,6 @@ static int xmp_write_buf(const char *gpath, struct fuse_bufvec *buf,
 		    (DPR_DATA, LOG_DIVIDER
 		     " reload required for \"%s\")\n", gpath);
 
-		fsus_flush(gpath, fi);
 		fsus_recreate(gpath);
 		fsus_open_shadow(gpath, fi);
 
@@ -6059,7 +6060,6 @@ static int xmp_write_buf(const char *gpath, struct fuse_bufvec *buf,
 	forensicLogChangesComing(DPR_DATA, WRITE_KEY, gpath);
 
 	// no need to get fpath on this one, since I work from fi->fh not the gpath
-
 	DEBUGe('3') debug_msg
 	    (DPR_DATA, LOG_DIVIDER " pwrite fd=\"%" PRIu64 "\"\n",
 	     ea_shadowFile_getValueOrKey(DPR_DATA, fi));
