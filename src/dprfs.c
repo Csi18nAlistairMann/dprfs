@@ -1007,8 +1007,8 @@ forensicLogChangesApplied(struct dpr_state *dpr_data, const char *gpath)
 		}
 		if (dpr_data->fl_arr.array[a]->counts[TRUNCATE_KEY] != 0) {
 			sprintf(result, "truncate: %lu ",
-				dpr_data->fl_arr.array[a]->
-				counts[TRUNCATE_KEY]);
+				dpr_data->fl_arr.
+				array[a]->counts[TRUNCATE_KEY]);
 			strcat(logline, result);
 		}
 		if (dpr_data->fl_arr.array[a]->counts[UTIME_KEY] != 0) {
@@ -1038,26 +1038,26 @@ forensicLogChangesApplied(struct dpr_state *dpr_data, const char *gpath)
 		}
 		if (dpr_data->fl_arr.array[a]->counts[SETXATTR_KEY] != 0) {
 			sprintf(result, "setxattr: %lu ",
-				dpr_data->fl_arr.array[a]->
-				counts[SETXATTR_KEY]);
+				dpr_data->fl_arr.
+				array[a]->counts[SETXATTR_KEY]);
 			strcat(logline, result);
 		}
 		if (dpr_data->fl_arr.array[a]->counts[REMOVEXATTR_KEY] != 0) {
 			sprintf(result, "removexattr: %lu ",
-				dpr_data->fl_arr.array[a]->
-				counts[REMOVEXATTR_KEY]);
+				dpr_data->fl_arr.
+				array[a]->counts[REMOVEXATTR_KEY]);
 			strcat(logline, result);
 		}
 		if (dpr_data->fl_arr.array[a]->counts[FALLOCATE_KEY] != 0) {
 			sprintf(result, "fallocate: %lu ",
-				dpr_data->fl_arr.array[a]->
-				counts[FALLOCATE_KEY]);
+				dpr_data->fl_arr.
+				array[a]->counts[FALLOCATE_KEY]);
 			strcat(logline, result);
 		}
 		if (dpr_data->fl_arr.array[a]->counts[RECREATE_KEY] != 0) {
 			sprintf(result, "recreate: %lu ",
-				dpr_data->fl_arr.array[a]->
-				counts[RECREATE_KEY]);
+				dpr_data->fl_arr.
+				array[a]->counts[RECREATE_KEY]);
 			strcat(logline, result);
 		}
 		/*
@@ -1067,8 +1067,8 @@ forensicLogChangesApplied(struct dpr_state *dpr_data, const char *gpath)
 		if (logline[0] != '\0') {
 			if (dpr_data->fl_arr.array[a]->counts[FLUSH_KEY] != 0) {
 				sprintf(result, "flush: %lu ",
-					dpr_data->fl_arr.array[a]->
-					counts[FLUSH_KEY]);
+					dpr_data->fl_arr.
+					array[a]->counts[FLUSH_KEY]);
 				strcat(logline, result);
 			}
 		}
@@ -2195,11 +2195,12 @@ saveMetadataToFile(const char *metadata_paf, struct metadata_array *md_arr)
 			      "  %s() writing out to %s\n", __func__,
 			      metadata_paf);
 	fp = fopen(metadata_paf, "w");
-	if (fp == NULL)
+	if (fp == NULL) {
 		DEBUGe('2') debug_msg(DPR_DATA,
 				      "[WARNING] %s() unable to open \"%s\"\n",
 				      __func__, metadata_paf);
-
+		return -1;
+	}
 	// Handle directives that only allow one key=value pair per file
 	if (*md_arr->beyond_use_on.value != '\0') {
 		DEBUGe('2') debug_msg(DPR_DATA,
@@ -3506,7 +3507,8 @@ makeAndPopulateNewRevisionTSDir(struct dpr_state *dpr_data,
 		strcpy(md_arr->supercedes.value, ll_l_lnk_target);
 
 	// create :latest/:Fmetadata-<ts>, fill as required
-	saveMetadataToFile(ll_l_fm_ts_file, md_arr);
+	if (saveMetadataToFile(ll_l_fm_ts_file, md_arr) != 0)
+		return -1;
 
 	// softlink to timestamp directory with :latest
 	rv = unlink(ll_l_fm_lnk);
@@ -3616,7 +3618,8 @@ saveDMetadataToFile(struct dpr_state *dpr_data, const char *gpath,
 	if (*ll_dm_lnk_target != '\0')
 		strcat(md_arr->supercedes.value, ll_dm_lnk_target);
 
-	saveMetadataToFile(ll_dm_ts_file, md_arr);
+	if (saveMetadataToFile(ll_dm_ts_file, md_arr) != 0)
+		return -1;
 
 	getLinkedlistDMetadataLnk(ll_dm_lnk, dxd);
 
@@ -3851,7 +3854,8 @@ fsus_rename_dir(struct dpr_state *dpr_data, struct dpr_xlate_data *dxdto,
 	dxd_initialiseTimestamp(dxdfrom);
 	getDMetadataTSFile(dm_ts_file, *dxdfrom);
 	getLinkedlistDMetadataTSFile(ll_dm_ts_file, *dxdfrom);
-	saveMetadataToFile(ll_dm_ts_file, &from_md_arr);
+	if (saveMetadataToFile(ll_dm_ts_file, &from_md_arr) != 0)
+		return -1;
 	unlink(from_ll_dm_lnk);
 	rv = symlink(dm_ts_file, from_ll_dm_lnk);
 
@@ -3893,7 +3897,7 @@ fsus_rename_dir(struct dpr_state *dpr_data, struct dpr_xlate_data *dxdto,
  * In both cases, the :Fmetadata links back to the previous
  * linkedlist with the name excluding ".part", if present
  */
-static void
+static int
 fsus_rename_ll(struct dpr_state *dpr_data, struct dpr_xlate_data *dxdto,
 	       struct dpr_xlate_data *dxdfrom_prv,
 	       struct dpr_xlate_data *dxdfrom, const char *oldpath,
@@ -3965,7 +3969,8 @@ fsus_rename_ll(struct dpr_state *dpr_data, struct dpr_xlate_data *dxdto,
 
 	getLinkedlistLatestFMetadataLnkTS(from_ll_l_fm_ts_2_file, *dxdfrom_prv);
 
-	saveMetadataToFile(from_ll_l_fm_ts_2_file, &from_md_arr);
+	if (saveMetadataToFile(from_ll_l_fm_ts_2_file, &from_md_arr) != 0)
+		return -1;
 
 	rv = unlink(prv_ll_l_fm_lnk);
 	rv = symlink(fm_ts_file, prv_ll_l_fm_lnk);
@@ -4030,6 +4035,7 @@ fsus_rename_ll(struct dpr_state *dpr_data, struct dpr_xlate_data *dxdto,
 	mstrfree(&to_md_arr.others);
 	mstrfree(&from_md_arr.others);
 	DEBUGe('2') debug_msg(DPR_DATA, " %s() exit\n", __func__);
+	return 0;
 }
 
 /*
@@ -4141,31 +4147,33 @@ static int fsus_rename(const char *fulloldpath, const char *fullnewpath,
 		// naturally temporary files as used by some SMB/CIFS implementations
 		//
 		// bodge required as dpr_create_with.. uses gpaths for now
+		rv = 0;
 		if (dxdfrom_prv.is_part_file == true) {
 			DEBUGe('2') debug_msg
 			    (DPR_DATA,
 			     " %s(): attempt rename of temp linkedlist\n",
 			     __func__);
-			fsus_rename_ll(DPR_DATA, &dxdto_new, &dxdfrom_prv,
-				       &dxdfrom_new, oldpath, newpath, true);
+			rv = fsus_rename_ll(DPR_DATA, &dxdto_new, &dxdfrom_prv,
+					    &dxdfrom_new, oldpath, newpath,
+					    true);
 
 		} else {
 			DEBUGe('2') debug_msg
 			    (DPR_DATA,
 			     " %s(): attempt rename of normal linkedlist\n",
 			     __func__);
-			fsus_rename_ll(DPR_DATA, &dxdto_new, &dxdfrom_prv,
-				       &dxdfrom_new, oldpath, newpath, false);
+			rv = fsus_rename_ll(DPR_DATA, &dxdto_new, &dxdfrom_prv,
+					    &dxdfrom_new, oldpath, newpath,
+					    false);
 		}
 
 		if (strstr(newpath, "$beyonduse") != NULL) {
 			DEBUGe('2') debug_msg(DPR_DATA,
 					      " %s(): calls beyonduse as well\n",
 					      __func__);
-			dprfs_beyonduse(DPR_DATA, newpath);
+			rv = dprfs_beyonduse(DPR_DATA, newpath);
 		}
 
-		rv = 0;
 		goto complete;
 	}
 	// Doesn't seem to be special so handle as a normal rename.

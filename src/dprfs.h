@@ -271,11 +271,11 @@ static int fsus_rename_dir(struct dpr_state *dpr_data,
 			   struct dpr_xlate_data *dxdto,
 			   struct dpr_xlate_data *dxdfrom, const char *newpath,
 			   const char *oldpath);
-static void fsus_rename_ll(struct dpr_state *dpr_data,
-			   struct dpr_xlate_data *dxdto,
-			   struct dpr_xlate_data *dxdfrom_prv,
-			   struct dpr_xlate_data *dxdfrom, const char *oldpath,
-			   const char *newpath, bool isPartFile);
+static int fsus_rename_ll(struct dpr_state *dpr_data,
+			  struct dpr_xlate_data *dxdto,
+			  struct dpr_xlate_data *dxdfrom_prv,
+			  struct dpr_xlate_data *dxdfrom, const char *oldpath,
+			  const char *newpath, bool isPartFile);
 
 /* Would add to filesystem as extensions */
 static int dprfs_beyonduse(struct dpr_state *dpr_data, const char *path);
