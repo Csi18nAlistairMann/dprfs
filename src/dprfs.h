@@ -296,3 +296,11 @@ static void dpr_cleanedXlateWholePath(struct dpr_xlate_data *dxd,
 				      struct dpr_state *dpr_data,
 				      const char *in_gpath, bool ignoreState,
 				      int depth, char *original_paf);
+
+/* rolling stats */
+void rs_initialise(struct dpr_state *dpr_data, struct rolling_stats *rs,
+		   unsigned int history_sz, unsigned int period_secs);
+void rs_free(struct rolling_stats rs);
+void rs_clear_all(struct rolling_stats *rs);
+void rs_clear_current(struct rolling_stats *rs);
+void rs_inc(struct dpr_state *dpr_data, struct rolling_stats *rs);

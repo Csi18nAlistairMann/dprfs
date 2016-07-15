@@ -1007,8 +1007,8 @@ forensicLogChangesApplied(struct dpr_state *dpr_data, const char *gpath)
 		}
 		if (dpr_data->fl_arr.array[a]->counts[TRUNCATE_KEY] != 0) {
 			sprintf(result, "truncate: %lu ",
-				dpr_data->fl_arr.
-				array[a]->counts[TRUNCATE_KEY]);
+				dpr_data->fl_arr.array[a]->
+				counts[TRUNCATE_KEY]);
 			strcat(logline, result);
 		}
 		if (dpr_data->fl_arr.array[a]->counts[UTIME_KEY] != 0) {
@@ -1038,26 +1038,26 @@ forensicLogChangesApplied(struct dpr_state *dpr_data, const char *gpath)
 		}
 		if (dpr_data->fl_arr.array[a]->counts[SETXATTR_KEY] != 0) {
 			sprintf(result, "setxattr: %lu ",
-				dpr_data->fl_arr.
-				array[a]->counts[SETXATTR_KEY]);
+				dpr_data->fl_arr.array[a]->
+				counts[SETXATTR_KEY]);
 			strcat(logline, result);
 		}
 		if (dpr_data->fl_arr.array[a]->counts[REMOVEXATTR_KEY] != 0) {
 			sprintf(result, "removexattr: %lu ",
-				dpr_data->fl_arr.
-				array[a]->counts[REMOVEXATTR_KEY]);
+				dpr_data->fl_arr.array[a]->
+				counts[REMOVEXATTR_KEY]);
 			strcat(logline, result);
 		}
 		if (dpr_data->fl_arr.array[a]->counts[FALLOCATE_KEY] != 0) {
 			sprintf(result, "fallocate: %lu ",
-				dpr_data->fl_arr.
-				array[a]->counts[FALLOCATE_KEY]);
+				dpr_data->fl_arr.array[a]->
+				counts[FALLOCATE_KEY]);
 			strcat(logline, result);
 		}
 		if (dpr_data->fl_arr.array[a]->counts[RECREATE_KEY] != 0) {
 			sprintf(result, "recreate: %lu ",
-				dpr_data->fl_arr.
-				array[a]->counts[RECREATE_KEY]);
+				dpr_data->fl_arr.array[a]->
+				counts[RECREATE_KEY]);
 			strcat(logline, result);
 		}
 		/*
@@ -1067,8 +1067,8 @@ forensicLogChangesApplied(struct dpr_state *dpr_data, const char *gpath)
 		if (logline[0] != '\0') {
 			if (dpr_data->fl_arr.array[a]->counts[FLUSH_KEY] != 0) {
 				sprintf(result, "flush: %lu ",
-					dpr_data->fl_arr.
-					array[a]->counts[FLUSH_KEY]);
+					dpr_data->fl_arr.array[a]->
+					counts[FLUSH_KEY]);
 				strcat(logline, result);
 			}
 		}
@@ -3545,6 +3545,8 @@ static int fsus_unlink(const char *gpath)
 				      "  %s()unexpected dxd.dprfs_filetype=\"%d\"\n",
 				      __func__, dxd.dprfs_filetype);
 	}
+	rs_inc(DPR_DATA, &DPR_DATA->delstats_p);
+
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s completes, rv=\"%d\"\n\n", __func__, rv);
 	return rv;
@@ -3738,6 +3740,7 @@ dprfs_beyonduse_ll(struct dpr_state *dpr_data, const char *gpath,
 	strcat(md_arr.beyond_use_on.value, timestamp);
 	rv = makeAndPopulateNewRevisionTSDir(dpr_data, gpath, &dxd, &md_arr,
 					     LINKEDLIST_EXTEND, 0);
+	rs_inc(DPR_DATA, &DPR_DATA->renstats_p);
 	util_beyonduseUpdateCounters(1, 0);
 
 	return rv;
@@ -3774,6 +3777,7 @@ dprfs_beyonduse_dir(struct dpr_state *dpr_data, const char *gpath,
 
 	rv = saveDMetadataToFile(dpr_data, gpath, dxd, &md_arr);
 
+	rs_inc(DPR_DATA, &DPR_DATA->renstats_p);
 	util_beyonduseUpdateCounters(0, 1);
 
 	return rv;
@@ -3877,6 +3881,8 @@ fsus_rename_dir(struct dpr_state *dpr_data, struct dpr_xlate_data *dxdto,
 	/* TO: save out metadata */
 	fsus_mkdir_with_metadata(dpr_data, to_rel_ll_name, getDefaultDirMode(),
 				 &to_md_arr);
+
+	rs_inc(DPR_DATA, &DPR_DATA->renstats_p);
 
 	mstrfree(&to_md_arr.others);
 	mstrfree(&from_md_arr.others);
@@ -4032,6 +4038,8 @@ fsus_rename_ll(struct dpr_state *dpr_data, struct dpr_xlate_data *dxdto,
 		rmrf(from_ll_name);
 	}
 	/* else we won't need to copy payload over */
+	rs_inc(DPR_DATA, &DPR_DATA->renstats_p);
+
 	mstrfree(&to_md_arr.others);
 	mstrfree(&from_md_arr.others);
 	DEBUGe('2') debug_msg(DPR_DATA, " %s() exit\n", __func__);
@@ -4185,6 +4193,7 @@ static int fsus_rename(const char *fulloldpath, const char *fullnewpath,
 	rv = rename(dxdfrom_prv_paf, dxdto_new_paf);
 	if (rv == -1)
 		rv = dpr_error("fsus_rename rename");
+	rs_inc(DPR_DATA, &DPR_DATA->renstats_p);
 
 	goto complete;
 
@@ -6296,6 +6305,135 @@ getCommandLineIntoOptions(struct internal_options *options, int *argc,
 	return -1;
 }
 
+/////////////////////////////////////
+// Rolling Stats
+
+/*
+ * It may be of use to know how many operations occur over transient periods:
+ * 500 deletes in half a second may be worth investigating. Note: we only
+ * note what's happened - triggering an action (an email, an alert etc) is
+ * not addressed here, and probably shouldn't be.
+ *
+ * ATM we record just deletes and renames, but this can work for any event.
+ * The method is to use modulo arithmetic to divide a timestamp in 3:
+ * Unix timestamp 0x57891F93 with a period of 16, and a history of 256 divides
+ * into [57891][F9][3].
+ *  [0x3] means this is the 3rd of 16 seconds. All 16 seconds will see the
+ *        same counter incremented.
+ *  [0xF9] means this is the 249th of 256 entries we'll keep. That is, the
+ *         previous 248 entries will no longer be updated, and there's another
+ *         7 entries we will keep in future before the next change.
+ *  [0x57891] means this is the 358,545th change. This is used relatively, so
+ *            when the change is made, the 256 current entries are copied into
+ *            an historical data set, the original 256 entries will be zeroed,
+ *            and the new change - 0x57892 - recorded.
+ *  Thus, if we record an operation at the moment of a change, while keeping
+ * four entries, we'll have [----][1---]: The historic set is empty, three of
+ * the current set are empty because the clock's not advanced yet, and the
+ * first of that current set records the operation.
+ *  If we then record two operations three periods later we'll end up with
+ * [----][1--2].
+ *  Assuming a change and three new operations, we'll see the current set
+ * moved to the historic set, and the new operations logged: [1--2][3---].
+ * Any data in the historic set gets lost. Did you want it? Poll for it.
+ * This method means that if you say you want to record four periods, the
+ * code can give you a minimum 4 (and a maximum 8) such records along with
+ * the timestamp they started - 0x57891000
+ */
+
+void rs_initialise(struct dpr_state *dpr_data, struct rolling_stats *rs,
+		   unsigned int history_sz, unsigned int period_secs)
+{
+	unsigned int halfsize_bits;
+	unsigned int period_bits;
+
+	/* Simple sanity check */
+	if (history_sz < 1)
+		history_sz = 1;
+	if (period_secs < 1)
+		period_secs = 1;
+
+	rs->period = period_secs;
+
+	period_bits = period_secs;
+	period_bits--;
+	rs->period_bits = 0;
+	while (period_bits > 0) {
+		period_bits >>= 1;
+		rs->period_bits++;
+	}
+
+	halfsize_bits = rs->halfsize = history_sz / 2;
+	halfsize_bits--;
+	rs->halfsize_bits = 0;
+	while (halfsize_bits > 0) {
+		halfsize_bits >>= 1;
+		rs->halfsize_bits++;
+	}
+
+	rs->history_sz = rs->halfsize * 2;
+	rs->data_p = malloc(sizeof(*rs->data_p) * rs->history_sz);
+	rs->change = 0;
+}
+
+void rs_free(struct rolling_stats rs)
+{
+	free(rs.data_p);
+}
+
+void rs_clear_all(struct rolling_stats *rs)
+{
+	int a;
+	for (a = 0; a < rs->history_sz; a++)
+		rs->data_p[a] = 0;
+}
+
+void rs_clear_current(struct rolling_stats *rs)
+{
+	int a;
+	for (a = rs->halfsize; a < rs->history_sz; a++)
+		rs->data_p[a] = 0;
+}
+
+void rs_inc(struct dpr_state *dpr_data, struct rolling_stats *rs)
+{
+	time_t secs = time(NULL);
+
+	// The change is the timestamp shifted right such that before each
+	// flushing of data to history, the change has incremented by exactly 1
+	unsigned long change = secs >> (rs->period_bits + rs->halfsize_bits);
+
+	if (rs->change == change - 1) {
+		// As the last change was the one before this change, flush
+		// the current data to history. So: [AAA][BBB] -> [BBB][000]
+		int a;
+		for (a = 0; a < rs->halfsize; a++)
+			rs->data_p[a] = rs->data_p[a + rs->halfsize];
+		rs_clear_current(rs);
+		rs->change = change;
+
+	} else if (rs->change != change) {
+		// It's been too long since last change, so blank it
+		// all and start again
+		rs_clear_all(rs);
+		rs->change = change;
+	}
+	rs->data_p[rs->halfsize +
+		   ((secs >> rs->period_bits) & (rs->halfsize - 1))]++;
+
+	char out[RS_DELETE_HISTORY + 1];
+	int a;
+	for (a = rs->history_sz - 1; a >= 0; a--) {
+		if (rs->data_p[a] == 0) {
+			out[a] = '-';
+		} else {
+			out[a] = rs->data_p[a] + '0';
+		}
+	}
+	out[RS_DELETE_HISTORY] = '\0';
+	DEBUGi('3') debug_msg(dpr_data, "rolling_stats: %s\n", out);
+}
+
 int main(int argc, char *argv[])
 {
 	struct internal_options options = OPTIONS_INIT;
@@ -6338,6 +6476,17 @@ int main(int argc, char *argv[])
 	ea_backup_gpath_initialise(dpr_data);
 	DEBUGi('0') debug_msg(dpr_data, "Starting DPRFS\n");
 
+#ifdef RS_DELETE_SUPPORT
+	rs_initialise(dpr_data, &dpr_data->delstats_p, RS_DELETE_HISTORY,
+		      RS_DELETE_PERIOD);
+	rs_clear_all(&dpr_data->delstats_p);
+#endif
+#ifdef RS_RENAME_SUPPORT
+	rs_initialise(dpr_data, &dpr_data->renstats_p, RS_RENAME_HISTORY,
+		      RS_RENAME_PERIOD);
+	rs_clear_all(&dpr_data->renstats_p);
+#endif
+
 	// make the /tmp/dprfs directory
 	makeDirectory(TMP_PATH);
 	makeBeyondUseFiles(dpr_data->rootdir, BEYOND_USE_RELPATH,
@@ -6363,6 +6512,14 @@ int main(int argc, char *argv[])
 	ea_shadowFile_release(dpr_data);
 	ea_flarrs_release(dpr_data);
 	ea_str_release(dpr_data);
+
+#ifdef RS_RENAME_SUPPORT
+	rs_free(dpr_data->renstats_p);
+#endif
+#ifdef RS_DELETE_SUPPORT
+	rs_free(dpr_data->delstats_p);
+#endif
+
  options_release:
 	free(options.rdrive);
 	free(dpr_data);

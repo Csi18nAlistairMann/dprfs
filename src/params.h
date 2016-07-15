@@ -14,6 +14,14 @@
 // 0 = compile for service; 1 = compile for unit tests
 #define RUN_AS_UNIT_TESTS 0
 
+/* Add rolling_stats by default, 8 second periods, max 8(+8) history */
+#define RS_DELETE_SUPPORT 1
+#define RS_DELETE_HISTORY 16
+#define RS_DELETE_PERIOD 8
+#define RS_RENAME_SUPPORT 1
+#define RS_RENAME_HISTORY 16
+#define RS_RENAME_PERIOD 8
+
 // The FUSE API has been changed a number of times.  So, our code
 // needs to define the version of the API that we assume.  As of this
 // writing, the most current API version is 26
@@ -131,6 +139,19 @@
 #define XMPDIRP_SHADOW 1
 #define XMPDIRP_EXHAUSTED 2
 
+struct rolling_stats {
+	unsigned long *data_p;	/* array where one element is hits per period */
+	unsigned long history_sz;	/* number of periods tracked + number in history */
+	unsigned long change;	/* timestamp shifted right */
+
+	/* Period: number of seconds to fit in one data point */
+	unsigned long period;
+	unsigned long period_bits;
+	/* Halfsize: number of periods before flushing to history */
+	unsigned long halfsize;
+	unsigned long halfsize_bits;
+};
+
 struct xmp_dirp {
 	DIR *dp;
 	DIR *shadow_dp;
@@ -219,6 +240,9 @@ struct dpr_state {
 	char *rootdir;
 	char debuglevel;
 	unsigned int rootdir_len;
+
+	struct rolling_stats delstats_p;
+	struct rolling_stats renstats_p;
 
 	// Array of pointers to files needing reload bc of
 	// linkedlist change while head already open
