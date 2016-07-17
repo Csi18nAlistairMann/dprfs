@@ -35,6 +35,7 @@
 #include <inttypes.h>
 #include <libgen.h>
 #include <limits.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -56,6 +57,10 @@
 #include "debug.h"
 #include "dprfs.h"
 #include "forensiclog.h"
+
+/* Globals only used because SIGUSR1 needs access */
+static struct dpr_state *dpr_data;
+static struct sigaction siga;
 
 /* inlines */
 inline struct xmp_dirp *get_dirp(struct fuse_file_info *fi)
@@ -6434,10 +6439,88 @@ void rs_inc(struct dpr_state *dpr_data, struct rolling_stats *rs)
 	DEBUGi('3') debug_msg(dpr_data, "rolling_stats: %s\n", out);
 }
 
+/////////////////////////////////////
+// Signal handling
+
+/*
+ * Only SIGUSR1 at this point. If dprfs has been keeping rolling stats,
+ * then the handler will flush them to file. To start with, dprfs dumps
+ * it in the shared memory FS as it's faster than the regular FS and
+ * it's how drpfs can share data with userspace.
+ * By only dumping on signal, no need for dprfs to do that dumping
+ * other than when needed.
+ * Users should prefer to use the "historic" data set - the current
+ * set is ... current ... and data cannot be considered complete.
+ * This might change later by use of semaphores, noting which figures
+ * can no longer be changed etc.
+ */
+
+static void dump_rs(struct rolling_stats rs, char *filename)
+{
+	unsigned long change;
+	char buffer[100];
+	FILE *pFile;
+	time_t secs;
+	int offset;
+	int a;
+
+	secs = time(NULL);
+	pFile = fopen(filename, "w");
+
+	// The change is the timestamp shifted right such that before
+	// each flushing of data to history, the change has incremented
+	// by exactly 1
+	change = secs >> (rs.period_bits + rs.halfsize_bits);
+	sprintf(buffer, "Now: %lx\n", change);
+	fwrite(buffer, sizeof(char), strlen(buffer), pFile);
+
+	// No recent data? Skip
+	if (rs.change < change - 1)
+		goto no_recent_data;
+
+	// If two changes since event, nothing will have flushed
+	// current data to historic. Use offset to handle it.
+	offset = 0;
+	if (rs.change == change - 1) {
+		offset = rs.halfsize;
+		sprintf(buffer, "Historic: %lx \n", rs.change);
+
+	} else {
+		sprintf(buffer, "Historic: %lx \n", rs.change - 1);
+	}
+
+	// show whatever history records
+	fwrite(buffer, sizeof(char), strlen(buffer), pFile);
+	for (a = offset; a < offset + rs.halfsize - 1; a++) {
+		sprintf(buffer, "%lx \n", rs.data_p[a]);
+		fwrite(buffer, sizeof(char), strlen(buffer), pFile);
+	}
+
+	if (rs.change != change)
+		goto no_recent_data;
+	// show what current period records
+	sprintf(buffer, "Current: %lx \n", rs.change);
+	fwrite(buffer, sizeof(char), strlen(buffer), pFile);
+
+	for (a = rs.halfsize; a < rs.history_sz - 1; a++) {
+		sprintf(buffer, "%lx \n", rs.data_p[a]);
+		fwrite(buffer, sizeof(char), strlen(buffer), pFile);
+	}
+ no_recent_data:
+	fclose(pFile);
+}
+
+static void multi_handler(int sig, siginfo_t * siginfo, void *context)
+{
+	if (sig == SIGUSR1) {
+		dump_rs(dpr_data->delstats_p, RS_DELETE_FILE);
+		dump_rs(dpr_data->renstats_p, RS_RENAME_FILE);
+	}
+}
+
 int main(int argc, char *argv[])
 {
 	struct internal_options options = OPTIONS_INIT;
-	struct dpr_state *dpr_data;
 	int rv;
 
 	umask(0);
@@ -6494,6 +6577,14 @@ int main(int argc, char *argv[])
 	makeAccessDeniedConstructs(TMP_PATH "/" ACCESS_DENIED_FILE,
 				   TMP_PATH "/" ACCESS_DENIED_DIR);
 
+	// SIGUSR1 flushes rolling stats
+	siga.sa_sigaction = *multi_handler;
+	siga.sa_flags |= SA_SIGINFO;
+	if (sigaction(SIGUSR1, &siga, NULL) != 0) {
+		printf("error sigaction()");
+		rv = errno;
+		goto options_release;
+	}
 #if RUN_AS_UNIT_TESTS
 	fprintf(stderr, "starting tests\n");
 	if (unittests_main(dpr_data->debugfile) == 0) {

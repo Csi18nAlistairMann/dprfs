@@ -15,9 +15,11 @@
 #define RUN_AS_UNIT_TESTS 0
 
 /* Add rolling_stats by default, 8 second periods, max 8(+8) history */
+#define RS_DELETE_FILE "/dev/shm/dprfs-rolling-stats-delete"
 #define RS_DELETE_SUPPORT 1
 #define RS_DELETE_HISTORY 16
 #define RS_DELETE_PERIOD 8
+#define RS_RENAME_FILE "/dev/shm/dprfs-rolling-stats-rename"
 #define RS_RENAME_SUPPORT 1
 #define RS_RENAME_HISTORY 16
 #define RS_RENAME_PERIOD 8
