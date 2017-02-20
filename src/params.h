@@ -100,6 +100,7 @@
 #define METADATA_KEY_LLID "llid = "
 #define METADATA_KEY_NOTVIA "not-via = "
 #define METADATA_KEY_PAYLOADLOC "payload-loc = "
+#define METADATA_KEY_ORIGINALDIR "original-dir = "
 #define METADATA_KEY_RENAMEDFROM "renamed-from = "
 #define METADATA_KEY_RENAMEDTO "renamed-to = "
 #define METADATA_KEY_SHA256 "sha256 = "
@@ -275,6 +276,7 @@ struct dpr_xlate_data {
 	bool is_part_file;
 	// payload doesn't exist in this link, use this location to find in previous
 	char payload[PATH_MAX];
+	char originaldir[PATH_MAX];
 	// The relpath is the left-hand side of the user's request up to the
 	// final path separator. If there isn't one, the relpath is set to
 	// "/". ".part" files will use a sha26 of the relpath string to
@@ -306,7 +308,7 @@ struct metadata_multiple {
 
 struct metadata_array {
 	struct metadata_single beyond_use_on, deleted, llid, payload_loc,
-	    renamed_from, renamed_to, sha256, supercedes;
+	    renamed_from, renamed_to, sha256, supercedes, original_dir;
 	struct metadata_multiple not_via;
 	// others used to store any other fields
 	// without processing implications
@@ -318,9 +320,9 @@ struct metadata_array {
 #define LINKEDLIST_EXTEND 2
 
 // constant that auto initialises metadata_arrays
-#define MD_ARR_INIT { .beyond_use_on.operation = MD_NOP, .beyond_use_on.value = "", .deleted.operation = MD_NOP, .deleted.value = "", .llid.operation = MD_NOP, .llid.value = "", .not_via.operation = MD_NOP, .not_via.value = "", .not_via.next = NULL, .others.string = NULL, .others.string_len = 0, .others.string_max = 0, .payload_loc.operation = MD_NOP, .payload_loc.value = "", .renamed_from.operation = MD_NOP, .renamed_from.value = "", .renamed_to.operation = MD_NOP, .renamed_to.value = "", .sha256.operation = MD_NOP, .sha256.value = "", .supercedes.operation = MD_NOP, .supercedes.value = "" }
+#define MD_ARR_INIT { .beyond_use_on.operation = MD_NOP, .beyond_use_on.value = "", .deleted.operation = MD_NOP, .deleted.value = "", .llid.operation = MD_NOP, .llid.value = "", .not_via.operation = MD_NOP, .not_via.value = "", .not_via.next = NULL, .others.string = NULL, .others.string_len = 0, .others.string_max = 0, .payload_loc.operation = MD_NOP, .payload_loc.value = "", .original_dir.operation = MD_NOP, .original_dir.value = "", .renamed_from.operation = MD_NOP, .renamed_from.value = "", .renamed_to.operation = MD_NOP, .renamed_to.value = "", .sha256.operation = MD_NOP, .sha256.value = "", .supercedes.operation = MD_NOP, .supercedes.value = "" }
 
-#define DXD_INIT { .deleted = false, .dprfs_filetype = DPRFS_FILETYPE_NA, .finalpath = "", .is_accdb = false, .is_osx_bodge = false, .is_part_file = false, .payload = "", .relpath = "", .relpath_sha256 = "", .revision = REVISION_NAME_MINIMUM, .rootdir = "", .timestamp = "" }
+#define DXD_INIT { .deleted = false, .dprfs_filetype = DPRFS_FILETYPE_NA, .finalpath = "", .is_accdb = false, .is_osx_bodge = false, .is_part_file = false, .payload = "", .originaldir = "", .relpath = "", .relpath_sha256 = "", .revision = REVISION_NAME_MINIMUM, .rootdir = "", .timestamp = "" }
 #endif
 
 #define OPTIONS_INIT { .fuse_argv[0] = NULL, .fuse_argv[0] = NULL, .fuse_argv[0] = NULL, .fuse_argv[0] = NULL, .fuse_argv[0] = NULL, .fuse_argc = 4, .rdrive = NULL, .debuglevel = '0' };

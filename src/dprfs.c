@@ -143,11 +143,11 @@ misc_debugDxd(const struct dpr_state *dpr_data, char debuglevel,
 {
 	DEBUGi(debuglevel) debug_msg
 	    (dpr_data,
-	     "%s(): %s deleted=\"%d\" dprfs_filetype=\"%d\" finalpath=\"%s\" is_osx_bodge=\"%d\" is_part_file=\"%d\" payload=\"%s\" relpath=\"%s\" relpath_sha256=\"%s\" revision=\"%s\" rootdir=\"%s\" timestamp=\"%s\")\n",
+	     "%s(): %s deleted=\"%d\" dprfs_filetype=\"%d\" finalpath=\"%s\" is_osx_bodge=\"%d\" is_part_file=\"%d\" payload=\"%s\" original-dir=\"%s\" relpath=\"%s\" relpath_sha256=\"%s\" revision=\"%s\" rootdir=\"%s\" timestamp=\"%s\")\n",
 	     function_name, prepend, dxd->deleted, dxd->dprfs_filetype,
 	     dxd->finalpath, dxd->is_osx_bodge, dxd->is_part_file, dxd->payload,
-	     dxd->relpath, dxd->relpath_sha256, dxd->revision, dxd->rootdir,
-	     dxd->timestamp);
+	     dxd->originaldir, dxd->relpath, dxd->relpath_sha256, dxd->revision,
+	     dxd->rootdir, dxd->timestamp);
 }
 
 /*
@@ -1301,6 +1301,7 @@ static void dxd_copy(struct dpr_xlate_data *to, struct dpr_xlate_data *from)
 	to->is_osx_bodge = from->is_osx_bodge;
 	to->is_part_file = from->is_part_file;
 	strcpy(to->payload, from->payload);
+	strcpy(to->originaldir, from->originaldir);
 	strcpy(to->relpath, from->relpath);
 	strcpy(to->relpath_sha256, from->relpath_sha256);
 	strcpy(to->revision, from->revision);
@@ -1800,8 +1801,9 @@ getLinkedlistRevtsLinkedlistFile(char *paf, const struct dpr_state *dpr_data,
 
 static void resetDxd(struct dpr_xlate_data *dxd)
 {
-	dxd->finalpath[0] = dxd->payload[0] = dxd->relpath[0] =
-	    dxd->relpath_sha256[0] = dxd->rootdir[0] = dxd->timestamp[0] = '\0';
+	dxd->finalpath[0] = dxd->payload[0] = dxd->originaldir[0] =
+	    dxd->relpath[0] = dxd->relpath_sha256[0] = dxd->rootdir[0] =
+	    dxd->timestamp[0] = '\0';
 
 	dxd->deleted = dxd->is_osx_bodge = dxd->is_part_file = false;
 	dxd->dprfs_filetype = DPRFS_FILETYPE_NA;
@@ -1811,7 +1813,8 @@ static void resetDxd(struct dpr_xlate_data *dxd)
 static void
 accessDeniedDxdFile(struct dpr_state *dpr_data, struct dpr_xlate_data *dxd)
 {
-	dxd->timestamp[0] = dxd->relpath_sha256[0] = dxd->payload[0] = '\0';
+	dxd->timestamp[0] = dxd->relpath_sha256[0] = dxd->payload[0] =
+	    dxd->originaldir[0] = '\0';
 	strcpy(dxd->rootdir, TMP_PATH);
 	strcpy(dxd->relpath, "/");
 	catSha256ToStr(dxd->relpath_sha256, dpr_data, dxd->relpath);
@@ -1825,7 +1828,8 @@ accessDeniedDxdFile(struct dpr_state *dpr_data, struct dpr_xlate_data *dxd)
 static void
 accessDeniedDxdDir(struct dpr_state *dpr_data, struct dpr_xlate_data *dxd)
 {
-	dxd->timestamp[0] = dxd->relpath_sha256[0] = dxd->payload[0] = '\0';
+	dxd->timestamp[0] = dxd->relpath_sha256[0] = dxd->payload[0] =
+	    dxd->originaldir[0] = '\0';
 	strcpy(dxd->rootdir, TMP_PATH);
 	strcpy(dxd->relpath, "/");
 	catSha256ToStr(dxd->relpath_sha256, dpr_data, dxd->relpath);
@@ -1917,6 +1921,8 @@ static void md_reset(struct metadata_array *md_arr)
 	mstrreset(&md_arr->others);
 	md_arr->payload_loc.operation = MD_NOP;
 	md_arr->payload_loc.value[0] = '\0';
+	md_arr->original_dir.operation = MD_NOP;
+	md_arr->original_dir.value[0] = '\0';
 	md_arr->renamed_from.operation = MD_NOP;
 	md_arr->renamed_from.value[0] = '\0';
 	md_arr->renamed_to.operation = MD_NOP;
@@ -2106,7 +2112,7 @@ md_getIntoStructure(struct metadata_array *md_arr,
 			// not-via different as multiple directives allowed
 			DEBUGi('2') debug_msg
 			    (dpr_data,
-			     "  %s(): \"%.*s\" may only have several values\n",
+			     "  %s(): \"%.*s\" may have several values\n",
 			     __func__,
 			     (int)(long long)name_p2 - (long long)name_p1 + 1,
 			     name_p1);
@@ -2133,6 +2139,14 @@ md_getIntoStructure(struct metadata_array *md_arr,
 			strncpy(md_arr->payload_loc.value, value_p1,
 				value_p2 - value_p1 + 1);
 			md_arr->payload_loc.value[value_p2 - value_p1 + 1] =
+			    '\0';
+
+		} else if (strncmp(name_p1, METADATA_KEY_ORIGINALDIR,
+				   strlen(METADATA_KEY_ORIGINALDIR) - 3) == 0) {
+			md_arr->original_dir.operation = MD_NOP;
+			strncpy(md_arr->original_dir.value, value_p1,
+				value_p2 - value_p1 + 1);
+			md_arr->original_dir.value[value_p2 - value_p1 + 1] =
 			    '\0';
 
 		} else if (strncmp(name_p1, METADATA_KEY_RENAMEDFROM,
@@ -2246,6 +2260,17 @@ saveMetadataToFile(const char *metadata_paf, struct metadata_array *md_arr)
 		       1, fp);
 		fwrite(md_arr->payload_loc.value,
 		       strlen(md_arr->payload_loc.value), 1, fp);
+		fwrite("\n", strlen("\n"), 1, fp);
+	}
+
+	if (*md_arr->original_dir.value != '\0') {
+		DEBUGe('2') debug_msg(DPR_DATA,
+				      "  %s() original_dir \"%s\"\n",
+				      __func__, md_arr->original_dir.value);
+		fwrite(METADATA_KEY_ORIGINALDIR,
+		       strlen(METADATA_KEY_ORIGINALDIR), 1, fp);
+		fwrite(md_arr->original_dir.value,
+		       strlen(md_arr->original_dir.value), 1, fp);
 		fwrite("\n", strlen("\n"), 1, fp);
 	}
 
@@ -3021,13 +3046,7 @@ dpr_cleanedXlateWholePath(struct dpr_xlate_data *dxd,
 			// doesn't point at the linkedlist that owns the payload,
 			// rather it points directly at the file constituting
 			// the payload, even if that file is not in the ll's head
-			DEBUGi('3') debug_msg
-			    (dpr_data,
-			     " %s()4-LL: payload-loc=\"%s\")\n",
-			     __func__, &md_arr_f.payload_loc.value);
 			strcpy(dxd->payload, md_arr_f.payload_loc.value);
-
-			misc_debugDxd(dpr_data, '3', dxd, "4-LL: ", __func__);
 			goto free_and_return;
 		}
 
@@ -3115,7 +3134,36 @@ dpr_cleanedXlateWholePath(struct dpr_xlate_data *dxd,
 				goto reset_free_and_return;	//ut_019
 			}
 
-			/* no payload directives in :Dmetadata files */
+			/* handle original-dir directive if non empty */
+			if (md_arr_d.original_dir.value[0] != '\0') {
+				char new_path[PATH_MAX] = "";
+				strcpy(new_path, md_arr_d.original_dir.value);
+				if (rhs[0] != '\0')
+					strcat(new_path, "/");
+				strcat(new_path, rhs);
+
+				/* if there'a an original-dir, restart processing completely */
+				struct dpr_xlate_data dxd2 = DXD_INIT;
+				dpr_xlateWholePath(&dxd2, dpr_data, new_path,
+						   ignoreState, depth,
+						   original_paf);
+
+				dxd->deleted = dxd2.deleted;
+				dxd->dprfs_filetype = dxd2.dprfs_filetype;
+				strcpy(dxd->finalpath, dxd2.finalpath);
+				dxd->is_accdb = dxd2.is_accdb;
+				dxd->is_osx_bodge = dxd2.is_osx_bodge;
+				dxd->is_part_file = dxd2.is_part_file;
+				strcpy(dxd->payload, dxd2.payload);
+				strcpy(dxd->originaldir, dxd2.originaldir);
+				strcpy(dxd->relpath, dxd2.relpath);
+				strcpy(dxd->relpath_sha256,
+				       dxd2.relpath_sha256);
+				strcpy(dxd->revision, dxd2.revision);
+				strcpy(dxd->rootdir, dxd2.rootdir);
+				strcpy(dxd->timestamp, dxd2.timestamp);
+				goto free_and_return;
+			}
 
 			if (*rhs != '\0') {
 				// still more to look at - recurse down
@@ -3124,14 +3172,11 @@ dpr_cleanedXlateWholePath(struct dpr_xlate_data *dxd,
 				catSha256ToStr(dxd->relpath_sha256, dpr_data,
 					       dxd->relpath);
 				*dxd->finalpath = '\0';
-				misc_debugDxd(dpr_data, '3', dxd,
-					      "4ai ", __func__);
 				dpr_xlateWholePath(dxd, dpr_data, rhs,
 						   ignoreState, depth,
 						   original_paf);
 				goto free_and_return;
 			}
-			misc_debugDxd(dpr_data, '3', dxd, "4ai ", __func__);
 			goto free_and_return;	//ut_018 on way back
 		}
 	}
@@ -3389,7 +3434,7 @@ static int fsus_create_core_ll(struct dpr_xlate_data *dxd, mode_t mode,
 
 /*
  * Create a linkedlist structure on the rdrive, or extend it
- * as specificied
+ * as specified
  */
 static int
 makeAndPopulateNewRevisionTSDir(struct dpr_state *dpr_data,
@@ -3881,6 +3926,13 @@ fsus_rename_dir(struct dpr_state *dpr_data, struct dpr_xlate_data *dxdto,
 	mstrcat(&to_md_arr.others, dpr_data, "/\n");
 	to_md_arr.llid.operation = from_md_arr.llid.operation;
 	strcpy(to_md_arr.llid.value, from_md_arr.llid.value);
+	/* Code is inefficient here, original-dir points to previous */
+	/* location of directory when pointing to the first location */
+	/* would be preferable */
+	mstrcat(&to_md_arr.others, dpr_data, "original-dir = ");
+	to_md_arr.original_dir.operation = from_md_arr.original_dir.operation;
+	mstrcat(&to_md_arr.others, dpr_data, oldpath);
+	mstrcat(&to_md_arr.others, dpr_data, "\n");
 	notviaChainToExcludePaf(&to_md_arr.not_via, newpath);
 
 	/* TO: save out metadata */
@@ -4904,7 +4956,7 @@ static int fsus_opendir(const char *gpath, struct fuse_file_info *fi)
 			      ll_name);
 
 	d->lookit = XMPDIRP_NORMAL;
-	d->dp = opendir(gpath);
+	d->dp = opendir(ll_name);
 	if (d->dp == NULL) {
 		res = -errno;
 		free(d);
