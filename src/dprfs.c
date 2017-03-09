@@ -4119,7 +4119,7 @@ static int fsus_rename(const char *fulloldpath, const char *fullnewpath,
 	struct dpr_xlate_data dxdto_new = DXD_INIT;
 	struct stat fileStat;
 	const char *oldpath = fulloldpath + DPR_DATA->rootdir_len;
-	const char *newpath = fullnewpath + DPR_DATA->rootdir_len;;
+	const char *newpath = fullnewpath + DPR_DATA->rootdir_len;
 	char dxdfrom_prv_paf[PATH_MAX] = "";
 	char dxdto_new_paf[PATH_MAX] = "";
 	char dxdfrom_prv_latest_paf[PATH_MAX] = "";
