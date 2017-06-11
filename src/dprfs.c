@@ -3041,6 +3041,16 @@ dpr_cleanedXlateWholePath(struct dpr_xlate_data *dxd,
 			goto reset_free_and_return;	//ut_019
 		}
 
+		if (ignoreState != true && md_arr_f.renamed_to.value[0] != '\0') {
+			// renamed-to being used is conclusive evidence that this link
+			// is not the last in the list, even though it's possibly at
+			// the head of a the list in view
+			DEBUGi('3') debug_msg
+				(dpr_data,
+				 "  metadata: renamed-to non-null - ignore this link\n");
+			goto reset_free_and_return;
+		}
+
 		if (md_arr_f.payload_loc.value[0] != '\0') {
 			// The payload-loc directive is a bit different in that it
 			// doesn't point at the linkedlist that owns the payload,
