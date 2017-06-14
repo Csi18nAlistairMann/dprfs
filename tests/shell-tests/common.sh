@@ -70,10 +70,28 @@ function testStringEqual()
 {
     ((NUMTESTS++))
     local rv=$(echo "$2" | pcregrep -c -M -N ANY "$3" -)
-    if [ "$rv" -ne "1" ]
+    if [ "$rv" -eq "0" ]
     then
 	((FAILEDTESTS++))
-	printf "[FAIL] $1 has unknown match '$2'\n"
+	printf "[FAIL] $1 has no match for '$2' against '$3'\n"
 	return 1
+    elif [ "$rv" -gt "1" ]
+    then
+	((FAILEDTESTS++))
+	printf "[FAIL] $1 has too many matches for '$2' against '$3'\n"
+	return 1
+    else
+	local sizein=${#2}
+	local rv2=$(echo "$2" | pcregrep -M -N ANY "$3" -)
+	local sizeout=${#rv2}
+	if [ $sizein -ne $sizeout ]
+	then
+	    ((FAILEDTESTS++))
+	    printf "[FAIL] Only a subset matched\n"
+	    printf "Input string: $2<<\n"
+	    printf "Output string: >>$rv2<<\n"
+	    return 1
+	fi
     fi
+    return 0
 }
