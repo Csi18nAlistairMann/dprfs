@@ -13,9 +13,9 @@
 */
 
 /**
- *
- * gcc -Wall -std=gnu90 -O2 -D_FILE_OFFSET_BITS=64 -DHAVE_CONFIG_H -g -O2 dprfs.c `pkg-config fuse3 --cflags --libs` -lulockmgr -lcrypto -lbsd   -o dprfs dprfs.o
+ * gcc -Wall -std=gnu90 dprfs.c debug.c forensiclog.c -O2 -D_FILE_OFFSET_BITS=64 -DHAVE_CONFIG_H `pkg-config fuse3 --cflags` -g -O2 -lulockmgr -lcrypto -lbsd `pkg-config fuse3 --libs` -DHAVE_CONFIG_H   -o dprfs
  * fusermount -u /var/lib/samba/usershares/gdrive; ./dprfs /var/lib/samba/usershares/gdrive -o allow_root -o modules=subdir -o subdir=/var/lib/samba/usershares/rdrive -D 1
+ * indent -linux *.h *.c
  */
 
 #define FUSE_USE_VERSION 30
@@ -1012,8 +1012,8 @@ forensicLogChangesApplied(struct dpr_state *dpr_data, const char *gpath)
 		}
 		if (dpr_data->fl_arr.array[a]->counts[TRUNCATE_KEY] != 0) {
 			sprintf(result, "truncate: %lu ",
-				dpr_data->fl_arr.array[a]->
-				counts[TRUNCATE_KEY]);
+				dpr_data->fl_arr.
+				array[a]->counts[TRUNCATE_KEY]);
 			strcat(logline, result);
 		}
 		if (dpr_data->fl_arr.array[a]->counts[UTIME_KEY] != 0) {
@@ -1043,26 +1043,26 @@ forensicLogChangesApplied(struct dpr_state *dpr_data, const char *gpath)
 		}
 		if (dpr_data->fl_arr.array[a]->counts[SETXATTR_KEY] != 0) {
 			sprintf(result, "setxattr: %lu ",
-				dpr_data->fl_arr.array[a]->
-				counts[SETXATTR_KEY]);
+				dpr_data->fl_arr.
+				array[a]->counts[SETXATTR_KEY]);
 			strcat(logline, result);
 		}
 		if (dpr_data->fl_arr.array[a]->counts[REMOVEXATTR_KEY] != 0) {
 			sprintf(result, "removexattr: %lu ",
-				dpr_data->fl_arr.array[a]->
-				counts[REMOVEXATTR_KEY]);
+				dpr_data->fl_arr.
+				array[a]->counts[REMOVEXATTR_KEY]);
 			strcat(logline, result);
 		}
 		if (dpr_data->fl_arr.array[a]->counts[FALLOCATE_KEY] != 0) {
 			sprintf(result, "fallocate: %lu ",
-				dpr_data->fl_arr.array[a]->
-				counts[FALLOCATE_KEY]);
+				dpr_data->fl_arr.
+				array[a]->counts[FALLOCATE_KEY]);
 			strcat(logline, result);
 		}
 		if (dpr_data->fl_arr.array[a]->counts[RECREATE_KEY] != 0) {
 			sprintf(result, "recreate: %lu ",
-				dpr_data->fl_arr.array[a]->
-				counts[RECREATE_KEY]);
+				dpr_data->fl_arr.
+				array[a]->counts[RECREATE_KEY]);
 			strcat(logline, result);
 		}
 		/*
@@ -1072,8 +1072,8 @@ forensicLogChangesApplied(struct dpr_state *dpr_data, const char *gpath)
 		if (logline[0] != '\0') {
 			if (dpr_data->fl_arr.array[a]->counts[FLUSH_KEY] != 0) {
 				sprintf(result, "flush: %lu ",
-					dpr_data->fl_arr.array[a]->
-					counts[FLUSH_KEY]);
+					dpr_data->fl_arr.
+					array[a]->counts[FLUSH_KEY]);
 				strcat(logline, result);
 			}
 		}
@@ -3046,8 +3046,8 @@ dpr_cleanedXlateWholePath(struct dpr_xlate_data *dxd,
 			// is not the last in the list, even though it's possibly at
 			// the head of a the list in view
 			DEBUGi('3') debug_msg
-				(dpr_data,
-				 "  metadata: renamed-to non-null - ignore this link\n");
+			    (dpr_data,
+			     "  metadata: renamed-to non-null - ignore this link\n");
 			goto reset_free_and_return;
 		}
 
@@ -5711,7 +5711,7 @@ fsus_setxattr(const char *gpath, const char *name, const char *value,
 	      size_t size, int flags)
 {
 	struct dpr_xlate_data dxd = DXD_INIT;
-	char ll_name[PATH_MAX] = "";
+	char paf[PATH_MAX] = "";
 	int rv;
 
 	DEBUGe('1') debug_msg(DPR_DATA,
@@ -5721,11 +5721,10 @@ fsus_setxattr(const char *gpath, const char *name, const char *value,
 
 	dpr_xlateWholePath(&dxd, DPR_DATA, gpath, true, XWP_DEPTH_MAX, NULL);
 
-	getLinkedlistName(ll_name, dxd);
-	DEBUGe('2') debug_msg(DPR_DATA,
-			      " %s(fpath=\"%s\")\n", __func__, ll_name);
+	getLinkedlistLatestLinkedlistFile(paf, dxd);
+	DEBUGe('2') debug_msg(DPR_DATA, " %s(fpath=\"%s\")\n", __func__, paf);
 
-	rv = lsetxattr(ll_name, name, value, size, flags);
+	rv = lsetxattr(paf, name, value, size, flags);
 	if (rv == -1)
 		rv = dpr_error("fsus_setxattr lsetxattr");
 
@@ -5739,7 +5738,7 @@ static int
 fsus_getxattr(const char *gpath, const char *name, char *value, size_t size)
 {
 	struct dpr_xlate_data dxd = DXD_INIT;
-	char ll_name[PATH_MAX] = "";
+	char paf[PATH_MAX] = "";
 	int rv;
 
 	DEBUGe('1') debug_msg(DPR_DATA,
@@ -5747,11 +5746,10 @@ fsus_getxattr(const char *gpath, const char *name, char *value, size_t size)
 			      __func__, gpath);
 	dpr_xlateWholePath(&dxd, DPR_DATA, gpath, true, XWP_DEPTH_MAX, NULL);
 
-	getLinkedlistName(ll_name, dxd);
-	DEBUGe('2') debug_msg(DPR_DATA,
-			      " %s(fpath=\"%s\")\n", __func__, ll_name);
+	getLinkedlistLatestLinkedlistFile(paf, dxd);
+	DEBUGe('2') debug_msg(DPR_DATA, " %s(fpath=\"%s\")\n", __func__, paf);
 
-	rv = lgetxattr(ll_name, name, value, size);
+	rv = lgetxattr(paf, name, value, size);
 	if (rv == -1)
 		rv = dpr_error("fsus_getxattr lgetxattr");
 
@@ -5764,7 +5762,7 @@ fsus_getxattr(const char *gpath, const char *name, char *value, size_t size)
 static int fsus_listxattr(const char *gpath, char *list, size_t size)
 {
 	struct dpr_xlate_data dxd = DXD_INIT;
-	char ll_name[PATH_MAX] = "";
+	char paf[PATH_MAX] = "";
 	int rv;
 
 	DEBUGe('1') debug_msg(DPR_DATA,
@@ -5772,11 +5770,10 @@ static int fsus_listxattr(const char *gpath, char *list, size_t size)
 			      __func__, gpath);
 	dpr_xlateWholePath(&dxd, DPR_DATA, gpath, true, XWP_DEPTH_MAX, NULL);
 
-	getLinkedlistName(ll_name, dxd);
-	DEBUGe('2') debug_msg(DPR_DATA,
-			      " %s(fpath=\"%s\")\n", __func__, ll_name);
+	getLinkedlistLatestLinkedlistFile(paf, dxd);
+	DEBUGe('2') debug_msg(DPR_DATA, " %s(fpath=\"%s\")\n", __func__, paf);
 
-	rv = llistxattr(ll_name, list, size);
+	rv = llistxattr(paf, list, size);
 	if (rv == -1)
 		rv = dpr_error("fsus_listxattr llistxattr");
 
@@ -5789,7 +5786,7 @@ static int fsus_listxattr(const char *gpath, char *list, size_t size)
 static int fsus_removexattr(const char *gpath, const char *name)
 {
 	struct dpr_xlate_data dxd = DXD_INIT;
-	char ll_name[PATH_MAX] = "";
+	char paf[PATH_MAX] = "";
 	int rv;
 
 	DEBUGe('1') debug_msg(DPR_DATA,
@@ -5799,11 +5796,10 @@ static int fsus_removexattr(const char *gpath, const char *name)
 
 	dpr_xlateWholePath(&dxd, DPR_DATA, gpath, true, XWP_DEPTH_MAX, NULL);
 
-	getLinkedlistName(ll_name, dxd);
-	DEBUGe('2') debug_msg(DPR_DATA,
-			      " %s(fpath=\"%s\")\n", __func__, ll_name);
+	getLinkedlistLatestLinkedlistFile(paf, dxd);
+	DEBUGe('2') debug_msg(DPR_DATA, " %s(fpath=\"%s\")\n", __func__, paf);
 
-	rv = lremovexattr(ll_name, name);
+	rv = lremovexattr(paf, name);
 	if (rv == -1)
 		rv = dpr_error("fsus_removexattr lrmovexattr");
 

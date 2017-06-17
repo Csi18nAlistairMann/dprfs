@@ -15,8 +15,8 @@
   forensiclog_msg("    " #field " = " #format "\n", typecast st->field)
 
 FILE *forensiclog_open(void);
-void forensiclog_conn (struct fuse_conn_info *conn);
-void forensiclog_fi (struct fuse_file_info *fi);
+void forensiclog_conn(struct fuse_conn_info *conn);
+void forensiclog_fi(struct fuse_file_info *fi);
 void forensiclog_stat(struct stat *si);
 void forensiclog_statvfs(struct statvfs *sv);
 /* void forensiclog_utime(struct utimbuf *buf); */

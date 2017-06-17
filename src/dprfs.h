@@ -264,7 +264,7 @@ static int fsus_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 			enum fuse_readdir_flags flags);
 static int fsus_releasedir(const char *gpath, struct fuse_file_info *fi);
 /* static int fsus_fsyncdir(const char *gpath, int datasync, */
-/* 			 struct fuse_file_info *fi); */
+/*			 struct fuse_file_info *fi); */
 static int fsus_rename(const char *oldpath, const char *newpath,
 		       unsigned int flags);
 static int fsus_rename_dir(struct dpr_state *dpr_data,
