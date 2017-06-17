@@ -10,16 +10,16 @@ function establishAllTestsGlobals()
 function establishFSBefore()
 {
     # Capture FS before the test
-    GDRIVE_BEFORE=`find $GDRIVE | sort`
-    RDRIVE_BEFORE=`find $RDRIVE | sort`
+    GDRIVE_BEFORE=`find $GDRIVE 2>/dev/null | sort`
+    RDRIVE_BEFORE=`find $RDRIVE 2>/dev/null | sort`
     TDRIVE_BEFORE=`find $TDRIVE 2>/dev/null | sort`
 }
 
 function establishFSAfter()
 {
     # Capture FS after the test
-    GDRIVE_AFTER=`find $GDRIVE | sort`
-    RDRIVE_AFTER=`find $RDRIVE | sort`
+    GDRIVE_AFTER=`find $GDRIVE 2>/dev/null | sort`
+    RDRIVE_AFTER=`find $RDRIVE 2>/dev/null | sort`
     TDRIVE_AFTER=`find $TDRIVE 2>/dev/null | sort`
 }
 
