@@ -14,21 +14,25 @@ function getTestResults()
 {
     testStringEqual "GDRIVE" "${DIFF_GDRIVE}" "^(\t${GDRIVE}${PATHTOFILE_AFTER})\n\1/${FILE}$"
 
-    testStringEqual "RDRIVE" "${DIFF_RDRIVE}" "^(\t${RDRIVE}${PATHTOFILE_BEFORE})\n(\1/:Dmetadata)\n\2-[0-9]{20}\n\2-[0-9]{20}\n(\1/${FILE})\n(\3/AA00000)(-[0-9]{20})\n\4\5/:Fmetadata\n\4\5/:Fmetadata\5\n\4\5/${FILE}\n\3/:latest\n(\t${RDRIVE}${PATHTOFILE_AFTER})\n(\6/:Dmetadata)\n\7-[0-9]{20}$"
+    testStringEqual "RDRIVE" "${DIFF_RDRIVE}" "^(\t${RDRIVE}${PATHTOFILE_BEFORE})\n\1(-[0-9]{20})\n\1\2/:Dmetadata\n\1\2/:Dmetadata-[0-9]{20}\n\1\2/:Dmetadata-[0-9]{20}\n\1\2/:Dmetadata-[0-9]{20}\n(\1\2/${FILE})\n(\3/AA00000)(-[0-9]{20})\n\4\5/:Fmetadata\n\4\5/:Fmetadata\5\n\4\5/${FILE}\n\3/:latest\n\1/:Dmetadata\n\1/:Dmetadata-[0-9]{20}\n(\t${RDRIVE}${PATHTOFILE_AFTER})\n\6/:Dmetadata\n\6/:Dmetadata-[0-9]{20}$"
 
 # '        /var/lib/samba/usershares/rdrive/a_ee8bea7756ec790c3e6b3d6c09895924_before
+#         /var/lib/samba/usershares/rdrive/a_ee8bea7756ec790c3e6b3d6c09895924_before-20170622002745817312
+#         /var/lib/samba/usershares/rdrive/a_ee8bea7756ec790c3e6b3d6c09895924_before-20170622002745817312/:Dmetadata
+#         /var/lib/samba/usershares/rdrive/a_ee8bea7756ec790c3e6b3d6c09895924_before-20170622002745817312/:Dmetadata-20170622002745817391
+#         /var/lib/samba/usershares/rdrive/a_ee8bea7756ec790c3e6b3d6c09895924_before-20170622002745817312/:Dmetadata-20170622002745817934
+#         /var/lib/samba/usershares/rdrive/a_ee8bea7756ec790c3e6b3d6c09895924_before-20170622002745817312/:Dmetadata-20170622002745821739
+#         /var/lib/samba/usershares/rdrive/a_ee8bea7756ec790c3e6b3d6c09895924_before-20170622002745817312/test007.sh_77585946cd986dda071f476978703cec
+#         /var/lib/samba/usershares/rdrive/a_ee8bea7756ec790c3e6b3d6c09895924_before-20170622002745817312/test007.sh_77585946cd986dda071f476978703cec/AA00000-20170622002745824345
+#         /var/lib/samba/usershares/rdrive/a_ee8bea7756ec790c3e6b3d6c09895924_before-20170622002745817312/test007.sh_77585946cd986dda071f476978703cec/AA00000-20170622002745824345/:Fmetadata
+#         /var/lib/samba/usershares/rdrive/a_ee8bea7756ec790c3e6b3d6c09895924_before-20170622002745817312/test007.sh_77585946cd986dda071f476978703cec/AA00000-20170622002745824345/:Fmetadata-20170622002745824345
+#         /var/lib/samba/usershares/rdrive/a_ee8bea7756ec790c3e6b3d6c09895924_before-20170622002745817312/test007.sh_77585946cd986dda071f476978703cec/AA00000-20170622002745824345/test007.sh_77585946cd986dda071f476978703cec
+#         /var/lib/samba/usershares/rdrive/a_ee8bea7756ec790c3e6b3d6c09895924_before-20170622002745817312/test007.sh_77585946cd986dda071f476978703cec/:latest
 #         /var/lib/samba/usershares/rdrive/a_ee8bea7756ec790c3e6b3d6c09895924_before/:Dmetadata
-#         /var/lib/samba/usershares/rdrive/a_ee8bea7756ec790c3e6b3d6c09895924_before/:Dmetadata-20170613214305072393
-#         /var/lib/samba/usershares/rdrive/a_ee8bea7756ec790c3e6b3d6c09895924_before/:Dmetadata-20170613214305076381
-#         /var/lib/samba/usershares/rdrive/a_ee8bea7756ec790c3e6b3d6c09895924_before/test007.sh_77585946cd986dda071f476978703cec
-#         /var/lib/samba/usershares/rdrive/a_ee8bea7756ec790c3e6b3d6c09895924_before/test007.sh_77585946cd986dda071f476978703cec/AA00000-20170613214305078844
-#         /var/lib/samba/usershares/rdrive/a_ee8bea7756ec790c3e6b3d6c09895924_before/test007.sh_77585946cd986dda071f476978703cec/AA00000-20170613214305078844/:Fmetadata
-#         /var/lib/samba/usershares/rdrive/a_ee8bea7756ec790c3e6b3d6c09895924_before/test007.sh_77585946cd986dda071f476978703cec/AA00000-20170613214305078844/:Fmetadata-20170613214305078844
-#         /var/lib/samba/usershares/rdrive/a_ee8bea7756ec790c3e6b3d6c09895924_before/test007.sh_77585946cd986dda071f476978703cec/AA00000-20170613214305078844/test007.sh_77585946cd986dda071f476978703cec
-#         /var/lib/samba/usershares/rdrive/a_ee8bea7756ec790c3e6b3d6c09895924_before/test007.sh_77585946cd986dda071f476978703cec/:latest
+#         /var/lib/samba/usershares/rdrive/a_ee8bea7756ec790c3e6b3d6c09895924_before/:Dmetadata-20170622002745818097
 #         /var/lib/samba/usershares/rdrive/b_ee8bea7756ec790c3e6b3d6c09895924_after
 #         /var/lib/samba/usershares/rdrive/b_ee8bea7756ec790c3e6b3d6c09895924_after/:Dmetadata
-#         /var/lib/samba/usershares/rdrive/b_ee8bea7756ec790c3e6b3d6c09895924_after/:Dmetadata-20170613214305076569'
+#         /var/lib/samba/usershares/rdrive/b_ee8bea7756ec790c3e6b3d6c09895924_after/:Dmetadata-20170622002745821928'
 
     testStringEmpty "TDRIVE" "${DIFF_TDRIVE}"
 

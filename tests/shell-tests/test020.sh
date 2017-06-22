@@ -46,7 +46,7 @@ function establishThisTestGlobals()
     FILE=`basename "$0"`'a_77585946cd986dda071f476978703ce_file'
     PATHTOFILE=''
     checkAndRemove $PATHTOTMPFILE$FILE
-    chmod 770 $RDRIVE/$FILE
+    chmod 770 $RDRIVE$FILE 2>/dev/null
     checkAndRemove $RDRIVE$FILE
     FAILEDTESTS=0
     NUMTESTS=0

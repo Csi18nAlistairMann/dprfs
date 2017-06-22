@@ -254,9 +254,11 @@ static int fsus_ftruncate(const char *gpath, off_t offset,
 static int fsus_mkdir(const char *gpath, mode_t mode);
 static int fsus_mkdir_with_metadata(struct dpr_state *dpr_data,
 				    const char *gpath, mode_t mode,
-				    struct metadata_array *md_arr);
+				    struct metadata_array *md_arr,
+				    bool ignoreOriginalDir);
 static int fsus_mkdir_core(struct dpr_state *dpr_data, const char *gpath,
-			   mode_t mode, struct metadata_array *md_arr);
+			   mode_t mode, struct metadata_array *md_arr,
+			   bool ignoreOriginalDir);
 static int fsus_rmdir(const char *gpath);
 static int fsus_opendir(const char *gpath, struct fuse_file_info *fi);
 static int fsus_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
@@ -267,10 +269,12 @@ static int fsus_releasedir(const char *gpath, struct fuse_file_info *fi);
 /*			 struct fuse_file_info *fi); */
 static int fsus_rename(const char *oldpath, const char *newpath,
 		       unsigned int flags);
+static int fsus_rename_core(const char *oldpath, const char *newpath,
+			    unsigned int flags, bool ignoreOriginalDir);
 static int fsus_rename_dir(struct dpr_state *dpr_data,
 			   struct dpr_xlate_data *dxdto,
 			   struct dpr_xlate_data *dxdfrom, const char *newpath,
-			   const char *oldpath);
+			   const char *oldpath, bool ignoreOriginalDir);
 static int fsus_rename_ll(struct dpr_state *dpr_data,
 			  struct dpr_xlate_data *dxdto,
 			  struct dpr_xlate_data *dxdfrom_prv,
@@ -291,11 +295,13 @@ static int dpr_xlateWholePath_whatIsThis(const struct dpr_state *dpr_data,
 					 bool ignoreState);
 static void dpr_xlateWholePath(struct dpr_xlate_data *dxd,
 			       struct dpr_state *dpr_data, const char *in_gpath,
-			       bool ignoreState, int depth, char *original_paf);
+			       bool ignoreState, int depth, char *original_paf,
+			       bool ignoreOriginalDir);
 static void dpr_cleanedXlateWholePath(struct dpr_xlate_data *dxd,
 				      struct dpr_state *dpr_data,
 				      const char *in_gpath, bool ignoreState,
-				      int depth, char *original_paf);
+				      int depth, char *original_paf,
+				      bool ignoreOriginalDir);
 
 /* rolling stats */
 void rs_initialise(struct dpr_state *dpr_data, struct rolling_stats *rs,

@@ -12,7 +12,15 @@ function getTestResults()
 {
     testStringEqual "GDRIVE" "${DIFF_GDRIVE}" "^\t${GDRIVE}${PATHTOFILE}$"
 
-    testStringEqual "RDRIVE" "${DIFF_RDRIVE}" "^\t${RDRIVE}${PATHTOFILE}\n\t${RDRIVE}${PATHTOFILE}/:Dmetadata\n\t${RDRIVE}${PATHTOFILE}/:Dmetadata\-[0-9]{20}$"
+    testStringEqual "RDRIVE" "${DIFF_RDRIVE}" "^(\t${RDRIVE}${PATHTOFILE})\n\1(-[0-9]{20})\n(\1\2/:Dmetadata)\n\3-[0-9]{20}\n\3-[0-9]{20}\n\1/:Dmetadata\n\1/:Dmetadata-[0-9]{20}$"
+
+# '        /var/lib/samba/usershares/rdrive/ee8bea7756ec790c3e6b3d6c09895924
+#         /var/lib/samba/usershares/rdrive/ee8bea7756ec790c3e6b3d6c09895924-20170622011028104145
+#         /var/lib/samba/usershares/rdrive/ee8bea7756ec790c3e6b3d6c09895924-20170622011028104145/:Dmetadata
+#         /var/lib/samba/usershares/rdrive/ee8bea7756ec790c3e6b3d6c09895924-20170622011028104145/:Dmetadata-20170622011028104206
+#         /var/lib/samba/usershares/rdrive/ee8bea7756ec790c3e6b3d6c09895924-20170622011028104145/:Dmetadata-20170622011028104636
+#         /var/lib/samba/usershares/rdrive/ee8bea7756ec790c3e6b3d6c09895924/:Dmetadata
+#         /var/lib/samba/usershares/rdrive/ee8bea7756ec790c3e6b3d6c09895924/:Dmetadata-20170622011028104771'
 
     testStringEmpty "TDRIVE" "${DIFF_TDRIVE}"
 
