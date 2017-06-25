@@ -16,7 +16,6 @@ function getTestResults()
     testStringEqual "GDRIVE" "${DIFF_GDRIVE}" "^(\t${GDRIVE}${PATHTOFILE_AFTER})\n\1/${FILE_AFTER}$"
 
     testStringEqual "RDRIVE" "${DIFF_RDRIVE}" "^(\t${RDRIVE}${PATHTOFILE_BEFORE})\n\1(-[0-9]{20})\n\1\2/:Dmetadata\n\1\2/:Dmetadata-[0-9]{20}\n\1\2/:Dmetadata-[0-9]{20}\n\1\2/:Dmetadata-[0-9]{20}\n(\1\2/${FILE_BEFORE})\n(\3/AA00000)(-[0-9]{20})\n\4\5/:Fmetadata\n\4\5/:Fmetadata\5\n\4\5/:Fmetadata-[0-9]{20}\n\4\5/${FILE_BEFORE}\n\3/:latest\n(\1\2/${FILE_AFTER})\n(\6/AA00000)(-[0-9]{20})\n\7\8/:Fmetadata\n\7\8/:Fmetadata\8\n\6/:latest\n\1/:Dmetadata\n\1/:Dmetadata-[0-9]{20}\n(\t${RDRIVE}${PATHTOFILE_AFTER})\n\9/:Dmetadata\n\9/:Dmetadata-[0-9]{20}$"
-
 # '        /var/lib/samba/usershares/rdrive/a_ee8bea7756ec790c3e6b3d6c09895924_before
 #         /var/lib/samba/usershares/rdrive/a_ee8bea7756ec790c3e6b3d6c09895924_before-20170622002436964690
 #         /var/lib/samba/usershares/rdrive/a_ee8bea7756ec790c3e6b3d6c09895924_before-20170622002436964690/:Dmetadata
@@ -54,16 +53,23 @@ function getTestResults()
 function establishThisTestGlobals()
 {
     # Constants for this test
-    PATHTOFILE_BEFORE='a_ee8bea7756ec790c3e6b3d6c09895924_before'
-    PATHTOFILE_AFTER='b_ee8bea7756ec790c3e6b3d6c09895924_after'
+    PATHTOFILE_BEFORE=`basename "$0"`'a_ee8bea7756ec790c3e6b3d6c09895924_before'
+    PATHTOFILE_AFTER=`basename "$0"`'b_ee8bea7756ec790c3e6b3d6c09895924_after'
     FILE_BEFORE=`basename "$0"`'a_77585946cd986dda071f476978703cec_before'
     FILE_AFTER=`basename "$0"`'b_77585946cd986dda071f476978703cec_after'
-    checkAndRemove $RDRIVE$PATHTOFILE_BEFORE/$FILE_AFTER
-    checkAndRemove $RDRIVE$PATHTOFILE_BEFORE/$FILE_BEFORE
-    checkAndRemove $RDRIVE$PATHTOFILE_BEFORE
-    checkAndRemove $RDRIVE$PATHTOFILE_AFTER
+    clearFS
     FAILEDTESTS=0
     NUMTESTS=0
+}
+
+function clearFS()
+{
+    checkAndRemove "${RDRIVE}${PATHTOFILE_BEFORE}/{$FILE_AFTER}"
+    checkAndRemove "${RDRIVE}${PATHTOFILE_BEFORE}/{$FILE_BEFORE}"
+    checkAndRemove "${RDRIVE}${PATHTOFILE_BEFORE}-"*
+    checkAndRemove "${RDRIVE}${PATHTOFILE_BEFORE}"*
+    checkAndRemove "${RDRIVE}${PATHTOFILE_AFTER}-"*
+    checkAndRemove "${RDRIVE}${PATHTOFILE_AFTER}"*
 }
 
 # Main
@@ -71,4 +77,5 @@ pretestWork
 runTest
 postTestWork
 getTestResults
+clearFS
 exit $FAILEDTESTS

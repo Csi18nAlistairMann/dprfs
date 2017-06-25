@@ -4132,7 +4132,7 @@ fsus_rename_ll(struct dpr_state *dpr_data, struct dpr_xlate_data *dxdto,
 static int fsus_rename(const char *fulloldpath, const char *fullnewpath,
 		       unsigned int flags)
 {
-	return fsus_rename_core(fulloldpath, fullnewpath, flags, false);
+	return fsus_rename_core(fulloldpath, fullnewpath, flags, true);
 }
 
 static int fsus_rename_core(const char *fulloldpath, const char *fullnewpath,

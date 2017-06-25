@@ -6,6 +6,7 @@ TESTNAME='Can rename a directory, then create a new directory of same name, with
 # This test necessary after discovering that a new directory with a
 # previously used name would have the contents of that previous
 # directory
+# ie, mkdir <previously used name>
 
 function runTest()
 {
@@ -49,22 +50,6 @@ function runTest_corrective()
     touch $GDRIVE$RENAMEDTODIR/$TESTFILERENAMEDTODIR
 }
 
-function establishThisTestGlobals()
-{
-    # Constants for this test
-    FILE='a_77585946cd986dda071f476978703ce_file'
-    ORIGINALDIR=`basename "$0"`'-ORIGINAL'
-    TESTFILEORIGINALDIR='this-is-original-dir'
-    RENAMEDTODIR=`basename "$0"`'-RENAMED'
-    TESTFILERENAMEDTODIR='this-is-renamed-dir'
-    checkAndRemove $RDRIVE$ORIGINALDIR
-    checkAndRemove $RDRIVE$ORIGINALDIR\-*
-    checkAndRemove $RDRIVE$ORIGINALDIR\-*
-    checkAndRemove $RDRIVE$RENAMEDTODIR
-    FAILEDTESTS=0
-    NUMTESTS=0
-}
-
 function getTestResults()
 {
     testStringEqual "GDRIVE" "${DIFF_GDRIVE}" "^(\t${GDRIVE}${ORIGINALDIR})\n\1/${TESTFILEORIGINALDIR}\n(\t${GDRIVE}${RENAMEDTODIR})\n\2/${FILE}\n\2/${TESTFILERENAMEDTODIR}\n$"
@@ -74,7 +59,6 @@ function getTestResults()
 #         /var/lib/samba/usershares/gdrive/test021.sh-RENAMED/a_77585946cd986dda071f476978703ce_file
 #         /var/lib/samba/usershares/gdrive/test021.sh-RENAMED/this-is-renamed-dir'
 
-#    testStringEqual "RDRIVE" "${DIFF_RDRIVE}" "^(\t${RDRIVE}${FILE})\n(\1/AA00000)(-[0-9]{20})\n(\2\3/:Fmetadata)\n\4\3\n\2\3/${FILE}\n\1/:latest\n$"
     testStringEqual "RDRIVE" "${DIFF_RDRIVE}" "^(\t${RDRIVE}${ORIGINALDIR})\n\1(-[0-9]{20})\n(\1\2/${FILE})\n(\3/AA00000)(-[0-9]{20})\n\4\5/${FILE}\n\4\5/:Fmetadata\n\4\5/:Fmetadata\5\n\3/:latest\n\1\2/:Dmetadata\n\1\2/:Dmetadata-[0-9]{20}\n\1\2/:Dmetadata-[0-9]{20}\n\1\2/:Dmetadata-[0-9]{20}\n(\1\2/${TESTFILERENAMEDTODIR})\n(\6/AA00000)(-[0-9]{20})\n\7\8/:Fmetadata\n\7\8/:Fmetadata\8\n\7\8/${TESTFILERENAMEDTODIR}\n\6/:latest\n\1(-[0-9]{20})\n\1\9/:Dmetadata\n\1\9/:Dmetadata-[0-9]{20}\n\1\9/:Dmetadata-[0-9]{20}\n(\1\9/${TESTFILEORIGINALDIR})\n(\g{10}/AA00000)(-[0-9]{20})\n\g{11}\g{12}/:Fmetadata\n\g{11}\g{12}/:Fmetadata\g{12}\n\g{11}\g{12}/${TESTFILEORIGINALDIR}\n\g{10}/:latest\n\1/:Dmetadata\n\1/:Dmetadata-[0-9]{20}\n\1/:Dmetadata-[0-9]{20}\n(\t${RDRIVE}${RENAMEDTODIR})\n\g{13}/:Dmetadata\n\g{13}/:Dmetadata-[0-9]{20}\n$"
 
 # '        /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL
@@ -122,9 +106,31 @@ function getTestResults()
     fi
 }
 
+function establishThisTestGlobals()
+{
+    # Constants for this test
+    FILE='a_77585946cd986dda071f476978703ce_file'`basename "$0"`
+    ORIGINALDIR=`basename "$0"`'-ORIGINAL'
+    TESTFILEORIGINALDIR=`basename "$0"`'this-is-original-dir'
+    RENAMEDTODIR=`basename "$0"`'-RENAMED'
+    TESTFILERENAMEDTODIR=`basename "$0"`'this-is-renamed-dir'
+    clearFS
+    FAILEDTESTS=0
+    NUMTESTS=0
+}
+
+function clearFS()
+{
+    checkAndRemove "${RDRIVE}${ORIGINALDIR}"
+    checkAndRemove "${RDRIVE}${ORIGINALDIR}-"*
+    checkAndRemove "${RDRIVE}${ORIGINALDIR}-"*
+    checkAndRemove "${RDRIVE}${RENAMEDTODIR}"
+}
+
 # Main
 pretestWork
 runTest
 postTestWork
 getTestResults
+clearFS
 exit $FAILEDTESTS

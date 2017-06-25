@@ -1,7 +1,7 @@
 #!/bin/bash
 source ./common.sh
 
-TESTNAME='Can touch a file in a subdirectory'
+TESTNAME='Cannot run same tests quickly even though listing is clear'
 
 function runTest()
 {
@@ -41,7 +41,7 @@ function getTestResults()
 function establishThisTestGlobals()
 {
     # Constants for this test
-    PATHTOFILE=`basename "$0"`'ee8bea7756ec790c3e6b3d6c09895924'
+    PATHTOFILE='ee8bea7756ec790c3e6b3d6c09895924'
     FILE=`basename "$0"`'_77585946cd986dda071f476978703cec'
     clearFS
     FAILEDTESTS=0
@@ -57,6 +57,8 @@ function clearFS
 
 # Main
 pretestWork
+runTest
+clearFS
 runTest
 postTestWork
 getTestResults

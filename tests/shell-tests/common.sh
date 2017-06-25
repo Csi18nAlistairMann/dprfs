@@ -37,6 +37,7 @@ function pretestWork()
     establishAllTestsGlobals
     establishThisTestGlobals
     establishFSBefore
+    clearFS
 }
 
 function postTestWork()
@@ -47,10 +48,9 @@ function postTestWork()
 
 function checkAndRemove()
 {
-    if [ -d $1 ]
+    if [ -d "$1" ]
     then
-	printf "Remove: $1\n"
-	rm -Ir $1
+	rm -rf "$1"
     fi
 }
 

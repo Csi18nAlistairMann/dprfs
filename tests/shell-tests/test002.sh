@@ -13,7 +13,6 @@ function getTestResults()
     testStringEqual "GDRIVE" "${DIFF_GDRIVE}" "^\t${GDRIVE}${PATHTOFILE}$"
 
     testStringEqual "RDRIVE" "${DIFF_RDRIVE}" "^(\t${RDRIVE}${PATHTOFILE})\n\1(-[0-9]{20})\n(\1\2/:Dmetadata)\n\3-[0-9]{20}\n\3-[0-9]{20}\n\1/:Dmetadata\n\1/:Dmetadata-[0-9]{20}$"
-
 # '        /var/lib/samba/usershares/rdrive/ee8bea7756ec790c3e6b3d6c09895924
 #         /var/lib/samba/usershares/rdrive/ee8bea7756ec790c3e6b3d6c09895924-20170622011028104145
 #         /var/lib/samba/usershares/rdrive/ee8bea7756ec790c3e6b3d6c09895924-20170622011028104145/:Dmetadata
@@ -35,12 +34,17 @@ function getTestResults()
 function establishThisTestGlobals()
 {
     # Constants for this test
-    PATHTOFILE='ee8bea7756ec790c3e6b3d6c09895924'
+    PATHTOFILE=`basename "$0"`'ee8bea7756ec790c3e6b3d6c09895924'
     FILE=`basename "$0"`'_77585946cd986dda071f476978703cec'
-    checkAndRemove $RDRIVE$PATHTOFILE$FILE
-    checkAndRemove $RDRIVE$PATHTOFILE
+    clearFS
     FAILEDTESTS=0
     NUMTESTS=0
+}
+
+function clearFS()
+{
+    checkAndRemove "${RDRIVE}${PATHTOFILE}-"*
+    checkAndRemove "${RDRIVE}${PATHTOFILE}"*
 }
 
 # Main
@@ -48,4 +52,5 @@ pretestWork
 runTest
 postTestWork
 getTestResults
+clearFS
 exit $FAILEDTESTS

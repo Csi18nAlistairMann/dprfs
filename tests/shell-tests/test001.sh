@@ -29,9 +29,13 @@ function establishThisTestGlobals()
     # Constants for this test
     PATHTOFILE=''
     FILE=`basename "$0"`'_77585946cd986dda071f476978703cec'
-    checkAndRemove $RDRIVE$FILE
     FAILEDTESTS=0
     NUMTESTS=0
+}
+
+function clearFS()
+{
+    checkAndRemove "${RDRIVE}${FILE}"
 }
 
 # Main
@@ -39,4 +43,5 @@ pretestWork
 runTest
 postTestWork
 getTestResults
+clearFS
 exit $FAILEDTESTS
