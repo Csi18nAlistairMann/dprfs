@@ -4146,8 +4146,7 @@ static int fsus_rename(const char *fulloldpath, const char *fullnewpath,
 {
 	int rv;
 	DEBUGe('1') debug_msg(DPR_DATA, LOG_DIVIDER "%s entry\n", __func__);
-	DEBUGe('2') debug_msg(DPR_DATA, " rename \"%s\" -> \"%s\"\n", __func__,
-			      fulloldpath, fullnewpath);
+	DEBUGe('2') debug_msg(DPR_DATA, " rename \"%s\" -> \"%s\"\n", fulloldpath, fullnewpath);
 
 	rv = fsus_rename_core(fulloldpath, fullnewpath, flags, USERSIDE);
 	DEBUGe('2') debug_msg(DPR_DATA,
@@ -5826,7 +5825,7 @@ fsus_getxattr(const char *gpath, const char *name, char *value, size_t size)
 
 	rv = lgetxattr(paf, name, value, size);
 	if (rv == -1)
-		rv = dpr_error("fsus_getxattr lgetxattr");
+		dpr_level_error('2', "fsus_getxattr lgetxattr");
 
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s completes, rv=\"%d\"\n\n", __func__, rv);
