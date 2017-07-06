@@ -15,8 +15,8 @@ function runTest()
     echo 'hello world' >$GDRIVE$ORIGINALDIR/$FILE
     mv $GDRIVE$ORIGINALDIR $GDRIVE$RENAMEDTODIR
     mkdir $GDRIVE$ORIGINALDIR
-    touch $GDRIVE$ORIGINALDIR/$TESTFILEORIGINALDIR
-    touch $GDRIVE$RENAMEDTODIR/$TESTFILERENAMEDTODIR
+    touch $GDRIVE$RENAMEDTODIR/$TESTFILEORIGINALDIR
+    touch $GDRIVE$ORIGINALDIR/$TESTFILERENAMEDTODIR
 }
 
 function runTest_corrective()
@@ -52,15 +52,50 @@ function runTest_corrective()
 
 function getTestResults()
 {
-    testStringEqual "GDRIVE" "${DIFF_GDRIVE}" "^(\t${GDRIVE}${ORIGINALDIR})\n\1/${TESTFILEORIGINALDIR}\n(\t${GDRIVE}${RENAMEDTODIR})\n\2/${FILE}\n\2/${TESTFILERENAMEDTODIR}\n$"
+    testStringEqual "GDRIVE" "${DIFF_GDRIVE}" "^(\t${GDRIVE}${ORIGINALDIR})\n\1/${TESTFILERENAMEDTODIR}\n(\t${GDRIVE}${RENAMEDTODIR})\n\2/${FILE}\n\2/${TESTFILEORIGINALDIR}\n$"
 # '        /var/lib/samba/usershares/gdrive/test021.sh-ORIGINAL
-#         /var/lib/samba/usershares/gdrive/test021.sh-ORIGINAL/this-is-original-dir
+#         /var/lib/samba/usershares/gdrive/test021.sh-ORIGINAL/test021.shthis-is-renamed-dir
 #         /var/lib/samba/usershares/gdrive/test021.sh-RENAMED
-#         /var/lib/samba/usershares/gdrive/test021.sh-RENAMED/a_77585946cd986dda071f476978703ce_file
-#         /var/lib/samba/usershares/gdrive/test021.sh-RENAMED/this-is-renamed-dir'
+#         /var/lib/samba/usershares/gdrive/test021.sh-RENAMED/file_test021.sh
+#         /var/lib/samba/usershares/gdrive/test021.sh-RENAMED/test021.shthis-is-original-dir'
 
-    testStringEqual "RDRIVE" "${DIFF_RDRIVE}" "^(\t${RDRIVE}${ORIGINALDIR})\n\1(-[0-9]{20})\n(\1\2/${FILE})\n(\3/AA00000)(-[0-9]{20})\n\4\5/${FILE}\n\4\5/:Fmetadata\n\4\5/:Fmetadata\5\n\3/:latest\n\1\2/:Dmetadata\n\1\2/:Dmetadata-[0-9]{20}\n\1\2/:Dmetadata-[0-9]{20}\n\1\2/:Dmetadata-[0-9]{20}\n(\1\2/${TESTFILERENAMEDTODIR})\n(\6/AA00000)(-[0-9]{20})\n\7\8/:Fmetadata\n\7\8/:Fmetadata\8\n\7\8/${TESTFILERENAMEDTODIR}\n\6/:latest\n\1(-[0-9]{20})\n\1\9/:Dmetadata\n\1\9/:Dmetadata-[0-9]{20}\n\1\9/:Dmetadata-[0-9]{20}\n(\1\9/${TESTFILEORIGINALDIR})\n(\g{10}/AA00000)(-[0-9]{20})\n\g{11}\g{12}/:Fmetadata\n\g{11}\g{12}/:Fmetadata\g{12}\n\g{11}\g{12}/${TESTFILEORIGINALDIR}\n\g{10}/:latest\n\1/:Dmetadata\n\1/:Dmetadata-[0-9]{20}\n\1/:Dmetadata-[0-9]{20}\n(\t${RDRIVE}${RENAMEDTODIR})\n\g{13}/:Dmetadata\n\g{13}/:Dmetadata-[0-9]{20}\n$"
+    testStringEqual "RDRIVE" "${DIFF_RDRIVE}" "^(\t${RDRIVE}${ORIGINALDIR})\n\g{1}(-[0-9]{20})\n(\g{1}\g{2}/:Dmetadata)\n\g{3}-[0-9]{20}\n\g{3}-[0-9]{20}\n\g{3}-[0-9]{20}\n(\g{1}\g{2}/${FILE})\n(\g{4}/AA00000)(-[0-9]{20})\n\g{5}\g{6}/${FILE}\n\g{5}\g{6}/:Fmetadata\n\g{5}\g{6}/:Fmetadata\g{6}\n\g{4}/:latest\n\g{1}\g{2}/${TESTFILEORIGINALDIR}\n(\g{1}\g{2}/${TESTFILEORIGINALDIR}/AA00000)(-[0-9]{20})\n\g{7}\g{8}/:Fmetadata\n\g{7}\g{8}/:Fmetadata\g{8}\n\g{7}\g{8}/${TESTFILEORIGINALDIR}\n\g{1}\g{2}/${TESTFILEORIGINALDIR}/:latest\n\g{1}(-[0-9]{20})\n\g{1}\g{9}/:Dmetadata\n\g{1}\g{9}/:Dmetadata-[0-9]{20}\n\g{1}\g{9}/:Dmetadata-[0-9]{20}\n\g{1}\g{9}/${TESTFILERENAMEDTODIR}\n(\g{1}\g{9}/${TESTFILERENAMEDTODIR}/AA00000)(-[0-9]{20})\n\g{10}\g{11}/:Fmetadata\n\g{10}\g{11}/:Fmetadata\g{11}\n\g{10}\g{11}/${TESTFILERENAMEDTODIR}\n\g{1}\g{9}/${TESTFILERENAMEDTODIR}/:latest\n\g{1}/:Dmetadata\n\g{1}/:Dmetadata-[0-9]{20}\n\g{1}/:Dmetadata-[0-9]{20}\n(\t${RDRIVE}${RENAMEDTODIR})\n\g{12}/:Dmetadata\n\g{12}/:Dmetadata-[0-9]{20}\n$"
+# '        /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL
+#         /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL-20170706005052142113
+#         /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL-20170706005052142113/:Dmetadata
+#         /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL-20170706005052142113/:Dmetadata-20170706005052142400
+#         /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL-20170706005052142113/:Dmetadata-20170706005052143566
+#         /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL-20170706005052142113/:Dmetadata-20170706005052156885
+#         /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL-20170706005052142113/file_test021.sh
+#         /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL-20170706005052142113/file_test021.sh/AA00000-20170706005052149519
+#         /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL-20170706005052142113/file_test021.sh/AA00000-20170706005052149519/file_test021.sh
+#         /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL-20170706005052142113/file_test021.sh/AA00000-20170706005052149519/:Fmetadata
+#         /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL-20170706005052142113/file_test021.sh/AA00000-20170706005052149519/:Fmetadata-20170706005052149519
+#         /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL-20170706005052142113/file_test021.sh/:latest
+#         /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL-20170706005052142113/test021.shthis-is-original-dir
+#         /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL-20170706005052142113/test021.shthis-is-original-dir/AA00000-20170706005052166037
+#         /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL-20170706005052142113/test021.shthis-is-original-dir/AA00000-20170706005052166037/:Fmetadata
+#         /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL-20170706005052142113/test021.shthis-is-original-dir/AA00000-20170706005052166037/:Fmetadata-20170706005052166037
+#         /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL-20170706005052142113/test021.shthis-is-original-dir/AA00000-20170706005052166037/test021.shthis-is-original-dir
+#         /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL-20170706005052142113/test021.shthis-is-original-dir/:latest
+#         /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL-20170706005052159912
+#         /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL-20170706005052159912/:Dmetadata
+#         /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL-20170706005052159912/:Dmetadata-20170706005052160147
+#         /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL-20170706005052159912/:Dmetadata-20170706005052161364
+#         /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL-20170706005052159912/test021.shthis-is-renamed-dir
+#         /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL-20170706005052159912/test021.shthis-is-renamed-dir/AA00000-20170706005052171907
+#         /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL-20170706005052159912/test021.shthis-is-renamed-dir/AA00000-20170706005052171907/:Fmetadata
+#         /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL-20170706005052159912/test021.shthis-is-renamed-dir/AA00000-20170706005052171907/:Fmetadata-20170706005052171907
+#         /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL-20170706005052159912/test021.shthis-is-renamed-dir/AA00000-20170706005052171907/test021.shthis-is-renamed-dir
+#         /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL-20170706005052159912/test021.shthis-is-renamed-dir/:latest
+#         /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL/:Dmetadata
+#         /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL/:Dmetadata-20170706005052143966
+#         /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL/:Dmetadata-20170706005052162292
+#         /var/lib/samba/usershares/rdrive/test021.sh-RENAMED
+#         /var/lib/samba/usershares/rdrive/test021.sh-RENAMED/:Dmetadata
+#         /var/lib/samba/usershares/rdrive/test021.sh-RENAMED/:Dmetadata-20170706005052157237
 
+    # testStringEqual "RDRIVE" "${DIFF_RDRIVE}" "^(\t${RDRIVE}${ORIGINALDIR})\n\1(-[0-9]{20})\n(\1\2/${FILE})\n(\3/AA00000)(-[0-9]{20})\n\4\5/${FILE}\n\4\5/:Fmetadata\n\4\5/:Fmetadata\5\n\3/:latest\n\1\2/:Dmetadata\n\1\2/:Dmetadata-[0-9]{20}\n\1\2/:Dmetadata-[0-9]{20}\n\1\2/:Dmetadata-[0-9]{20}\n(\1\2/${TESTFILERENAMEDTODIR})\n(\6/AA00000)(-[0-9]{20})\n\7\8/:Fmetadata\n\7\8/:Fmetadata\8\n\7\8/${TESTFILERENAMEDTODIR}\n\6/:latest\n\1(-[0-9]{20})\n\1\9/:Dmetadata\n\1\9/:Dmetadata-[0-9]{20}\n\1\9/:Dmetadata-[0-9]{20}\n(\1\9/${TESTFILEORIGINALDIR})\n(\g{10}/AA00000)(-[0-9]{20})\n\g{11}\g{12}/:Fmetadata\n\g{11}\g{12}/:Fmetadata\g{12}\n\g{11}\g{12}/${TESTFILEORIGINALDIR}\n\g{10}/:latest\n\1/:Dmetadata\n\1/:Dmetadata-[0-9]{20}\n\1/:Dmetadata-[0-9]{20}\n(\t${RDRIVE}${RENAMEDTODIR})\n\g{13}/:Dmetadata\n\g{13}/:Dmetadata-[0-9]{20}\n$"
 # '        /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL
 #         /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL-20170621232100335715
 #         /var/lib/samba/usershares/rdrive/test021.sh-ORIGINAL-20170621232100335715/a_77585946cd986dda071f476978703ce_file
@@ -109,7 +144,7 @@ function getTestResults()
 function establishThisTestGlobals()
 {
     # Constants for this test
-    FILE='a_77585946cd986dda071f476978703ce_file'`basename "$0"`
+    FILE='file_'`basename "$0"`
     ORIGINALDIR=`basename "$0"`'-ORIGINAL'
     TESTFILEORIGINALDIR=`basename "$0"`'this-is-original-dir'
     RENAMEDTODIR=`basename "$0"`'-RENAMED'

@@ -13,18 +13,18 @@ function getTestResults()
 {
     testStringEqual "GDRIVE" "${DIFF_GDRIVE}" "^\t${GDRIVE}${PATHTOFILE_AFTER}$"
 
-    testStringEqual "RDRIVE" "${DIFF_RDRIVE}" "^(\t${RDRIVE}${PATHTOFILE_BEFORE})\n\1(-[0-9]{20})\n(\1\2/:Dmetadata)\n\3-[0-9]{20}\n\3-[0-9]{20}\n\3-[0-9]{20}\n\1/:Dmetadata\n\1/:Dmetadata-[0-9]{20}\n(\t${RDRIVE}${PATHTOFILE_AFTER})\n\4/:Dmetadata\n\4/:Dmetadata-[0-9]{20}\n$"
-# '        /var/lib/samba/usershares/rdrive/a_ee7ac1bfb4434323f10239c01972bbab_before
-#         /var/lib/samba/usershares/rdrive/a_ee7ac1bfb4434323f10239c01972bbab_before-20170622010133134652
-#         /var/lib/samba/usershares/rdrive/a_ee7ac1bfb4434323f10239c01972bbab_before-20170622010133134652/:Dmetadata
-#         /var/lib/samba/usershares/rdrive/a_ee7ac1bfb4434323f10239c01972bbab_before-20170622010133134652/:Dmetadata-20170622010133134716
-#         /var/lib/samba/usershares/rdrive/a_ee7ac1bfb4434323f10239c01972bbab_before-20170622010133134652/:Dmetadata-20170622010133135157
-#         /var/lib/samba/usershares/rdrive/a_ee7ac1bfb4434323f10239c01972bbab_before-20170622010133134652/:Dmetadata-20170622010133138224
-#         /var/lib/samba/usershares/rdrive/a_ee7ac1bfb4434323f10239c01972bbab_before/:Dmetadata
-#         /var/lib/samba/usershares/rdrive/a_ee7ac1bfb4434323f10239c01972bbab_before/:Dmetadata-20170622010133135292
-#         /var/lib/samba/usershares/rdrive/b_9105fcc12cdba58560ad34db34ef3a3a_after
-#         /var/lib/samba/usershares/rdrive/b_9105fcc12cdba58560ad34db34ef3a3a_after/:Dmetadata
-#         /var/lib/samba/usershares/rdrive/b_9105fcc12cdba58560ad34db34ef3a3a_after/:Dmetadata-20170622010133138391'
+    testStringEqual "RDRIVE" "${DIFF_RDRIVE}" "^(\t${RDRIVE}${PATHTOFILE_BEFORE})\n\g{1}(-[0-9]{20})\n(\g{1}\g{2}/:Dmetadata)\n\g{3}-[0-9]{20}\n\g{3}-[0-9]{20}\n\g{3}-[0-9]{20}\n\g{1}/:Dmetadata\n\g{1}/:Dmetadata-[0-9]{20}\n(\t${RDRIVE}${PATHTOFILE_AFTER})\n\g{4}/:Dmetadata\n\g{4}/:Dmetadata-[0-9]{20}\n$"
+# '        /var/lib/samba/usershares/rdrive/test004.sha__before
+#         /var/lib/samba/usershares/rdrive/test004.sha__before-20170706004711526731
+#         /var/lib/samba/usershares/rdrive/test004.sha__before-20170706004711526731/:Dmetadata
+#         /var/lib/samba/usershares/rdrive/test004.sha__before-20170706004711526731/:Dmetadata-20170706004711526989
+#         /var/lib/samba/usershares/rdrive/test004.sha__before-20170706004711526731/:Dmetadata-20170706004711528230
+#         /var/lib/samba/usershares/rdrive/test004.sha__before-20170706004711526731/:Dmetadata-20170706004711533578
+#         /var/lib/samba/usershares/rdrive/test004.sha__before/:Dmetadata
+#         /var/lib/samba/usershares/rdrive/test004.sha__before/:Dmetadata-20170706004711528566
+#         /var/lib/samba/usershares/rdrive/test004.shb__after
+#         /var/lib/samba/usershares/rdrive/test004.shb__after/:Dmetadata
+#         /var/lib/samba/usershares/rdrive/test004.shb__after/:Dmetadata-20170706004711533928'
 
     testStringEmpty "TDRIVE" "${DIFF_TDRIVE}"
 
@@ -39,9 +39,9 @@ function getTestResults()
 function establishThisTestGlobals()
 {
     # Constants for this test
-    PATHTOFILE_BEFORE=`basename "$0"`'a_ee7ac1bfb4434323f10239c01972bbab_before'
-    PATHTOFILE_AFTER=`basename "$0"`'b_9105fcc12cdba58560ad34db34ef3a3a_after'
-    FILE=`basename "$0"`'_77585946cd986dda071f476978703cec'
+    PATHTOFILE_BEFORE=`basename "$0"`'a__before'
+    PATHTOFILE_AFTER=`basename "$0"`'b__after'
+    FILE=`basename "$0"`'_file'
     clearFS
     FAILEDTESTS=0
     NUMTESTS=0

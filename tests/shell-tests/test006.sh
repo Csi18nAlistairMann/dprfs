@@ -48,9 +48,9 @@ function getTestResults()
 function establishThisTestGlobals()
 {
     # Constants for this test
-    PATHTOFILE=`basename "$0"`'ee7ac1bfb4434323f10239c01972bbab'
-    FILE_BEFORE=`basename "$0"`'a_77585946cd986dda071f476978703cec_before'
-    FILE_AFTER=`basename "$0"`'b_77585946cd986dda071f476978703cec_after'
+    PATHTOFILE=`basename "$0"`'_dir'
+    FILE_BEFORE=`basename "$0"`'a_before'
+    FILE_AFTER=`basename "$0"`'b_after'
     clearFS
     FAILEDTESTS=0
     NUMTESTS=0

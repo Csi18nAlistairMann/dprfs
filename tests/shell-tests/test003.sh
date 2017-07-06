@@ -41,8 +41,8 @@ function getTestResults()
 function establishThisTestGlobals()
 {
     # Constants for this test
-    PATHTOFILE=`basename "$0"`'ee8bea7756ec790c3e6b3d6c09895924'
-    FILE=`basename "$0"`'_77585946cd986dda071f476978703cec'
+    PATHTOFILE=`basename "$0"`'_subdir'
+    FILE=`basename "$0"`'_file'
     clearFS
     FAILEDTESTS=0
     NUMTESTS=0

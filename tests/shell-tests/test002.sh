@@ -11,6 +11,9 @@ function runTest()
 function getTestResults()
 {
     testStringEqual "GDRIVE" "${DIFF_GDRIVE}" "^\t${GDRIVE}${PATHTOFILE}$"
+# '        /var/lib/samba/usershares/rdrive/test002.shee8bea7756ec790c3e6b3d6c09895924
+#         /var/lib/samba/usershares/rdrive/test002.shee8bea7756ec790c3e6b3d6c09895924/:Dmetadata
+#         /var/lib/samba/usershares/rdrive/test002.shee8bea7756ec790c3e6b3d6c09895924/:Dmetadata-20170630195445102460'
 
     testStringEqual "RDRIVE" "${DIFF_RDRIVE}" "^(\t${RDRIVE}${PATHTOFILE})\n\1(-[0-9]{20})\n(\1\2/:Dmetadata)\n\3-[0-9]{20}\n\3-[0-9]{20}\n\1/:Dmetadata\n\1/:Dmetadata-[0-9]{20}$"
 # '        /var/lib/samba/usershares/rdrive/ee8bea7756ec790c3e6b3d6c09895924

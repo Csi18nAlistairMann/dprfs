@@ -87,9 +87,9 @@ function testStringEqual()
 	if [ $sizein -ne $sizeout ]
 	then
 	    ((FAILEDTESTS++))
-	    printf "[FAIL] Only a subset matched\n"
-	    printf "Input string: $2<<\n"
-	    printf "Output string: >>$rv2<<\n"
+	    printf "[FAIL] $1 Sees only a subset matched\n"
+	    printf "Expected: '$rv2'\n"
+	    printf "Got: '$2'\n"
 	    return 1
 	fi
     fi

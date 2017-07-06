@@ -334,3 +334,9 @@ struct metadata_array {
 #define DEBUGi(level) if (dpr_data->debuglevel >= level)
 #define CKPTe debug_msg(DPR_DATA, " checkpoint: %s %d\n", __FILE__, __LINE__)
 #define CKPTi debug_msg(dpr_data, " checkpoint: %s %d\n", __FILE__, __LINE__)
+
+/* How to interact with the original-dir directive? */
+#define OBSERVE_ORIGINAL_DIR 1
+#define IGNORE_ORIGINAL_DIR 2
+#define SERVERSIDE 3
+#define USERSIDE 4

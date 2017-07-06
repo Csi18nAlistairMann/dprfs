@@ -133,6 +133,7 @@ static void catSha256ToStr(char *dest, const struct dpr_state *dpr_data,
 		*p++ = l;
 	}
 	*p = '\0';
+	DEBUGi('3') debug_msg(dpr_data, " %s() completed\n", __func__);
 }
 
 /* dump out current state of given dxd to log */
@@ -2777,16 +2778,15 @@ dpr_xlateWholePath_whatIsThis(const struct dpr_state *dpr_data,
 static void
 dpr_xlateWholePath(struct dpr_xlate_data *dxd, struct dpr_state *dpr_data,
 		   const char *in_gpath, bool ignoreState, int depth,
-		   char *original_paf, bool ignoreOriginalDir)
+		   char *original_paf, int whatDoWithOriginalDir)
 {
 	const char *cleaned;
 	/* If present, remove /path/to/rdrive */
 	cleaned = in_gpath;
 	if (strncmp(cleaned, dpr_data->rootdir, dpr_data->rootdir_len) == 0)
 		cleaned = cleaned + dpr_data->rootdir_len;
-
 	dpr_cleanedXlateWholePath(dxd, dpr_data, cleaned, ignoreState,
-				  depth, original_paf, ignoreOriginalDir);
+				  depth, original_paf, whatDoWithOriginalDir);
 	return;
 }
 
@@ -2794,7 +2794,7 @@ static void
 dpr_cleanedXlateWholePath(struct dpr_xlate_data *dxd,
 			  struct dpr_state *dpr_data, const char *in_gpath,
 			  bool ignoreState, int depth, char *original_paf,
-			  bool ignoreOriginalDir)
+			  int whatDoWithOriginalDir)
 {
 	struct metadata_array md_arr_d = MD_ARR_INIT;
 	struct metadata_array md_arr_f = MD_ARR_INIT;
@@ -2925,7 +2925,7 @@ dpr_cleanedXlateWholePath(struct dpr_xlate_data *dxd,
 
 		misc_debugDxd(dpr_data, '3', dxd, "3a: ", __func__);
 		dpr_xlateWholePath(dxd, dpr_data, rhs, ignoreState, depth,
-				   original_paf, ignoreOriginalDir);
+				   original_paf, whatDoWithOriginalDir);
 		return;		//ut_002
 	}
 
@@ -3038,7 +3038,8 @@ dpr_cleanedXlateWholePath(struct dpr_xlate_data *dxd,
 			// to a previous name
 			DEBUGi('3') debug_msg
 			    (dpr_data,
-			     "  :Fmetadata: access to not-via linkedlist declined.\n");
+			     "  :Fmetadata: access to not-via linkedlist declined \"%s\".\n",
+			     original_paf);
 			goto reset_free_and_return;	//ut_019
 		}
 
@@ -3099,7 +3100,7 @@ dpr_cleanedXlateWholePath(struct dpr_xlate_data *dxd,
 				dpr_xlateWholePath(dxd, dpr_data, rhs,
 						   ignoreState, depth,
 						   original_paf,
-						   ignoreOriginalDir);
+						   whatDoWithOriginalDir);
 				return;	//ut_005 on the way back
 			}
 
@@ -3142,42 +3143,59 @@ dpr_cleanedXlateWholePath(struct dpr_xlate_data *dxd,
 				// to a previous name
 				DEBUGi('3') debug_msg
 				    (dpr_data,
-				     "  :Dmetadata: access to not-via directory declined.\n");
+				     "  :Dmetadata: access to not-via directory declined \"%s\".\n",
+				     original_paf);
 				goto reset_free_and_return;	//ut_019
 			}
 
 			/* handle original-dir directive if non empty */
-			if (ignoreOriginalDir == false &&
+			if (whatDoWithOriginalDir == OBSERVE_ORIGINAL_DIR &&
 			    md_arr_d.original_dir.value[0] != '\0') {
 				/* handle original-dir directive if non empty */
 				char new_path[PATH_MAX] = "";
+				long idx;
 				strcpy(new_path, md_arr_d.original_dir.value);
 				if (rhs[0] != '\0')
 					strcat(new_path, "/");
 				strcat(new_path, rhs);
+				idx = strlen(new_path) - strlen(in_gpath);
 
-				/* if there'a an original-dir, restart processing completely */
-				struct dpr_xlate_data dxd2 = DXD_INIT;
-				dpr_xlateWholePath(&dxd2, dpr_data, new_path,
-						   ignoreState, depth,
-						   original_paf,
-						   ignoreOriginalDir);
+				/* if new path same not same as old path which does allow
+				   for a > b > c > a loops, admittedly */
+				if (idx >= 0 &&
+				    strcmp(new_path + idx, in_gpath) == 0) {
+					// Only look at lastmost directory
+					DEBUGi('3') debug_msg
+					    (dpr_data,
+					     " Skipping original-dir that points to self\n");
 
-				dxd->deleted = dxd2.deleted;
-				dxd->dprfs_filetype = dxd2.dprfs_filetype;
-				strcpy(dxd->finalpath, dxd2.finalpath);
-				dxd->is_accdb = dxd2.is_accdb;
-				dxd->is_osx_bodge = dxd2.is_osx_bodge;
-				dxd->is_part_file = dxd2.is_part_file;
-				strcpy(dxd->payload, dxd2.payload);
-				strcpy(dxd->originaldir, dxd2.originaldir);
-				strcpy(dxd->relpath, dxd2.relpath);
-				strcpy(dxd->relpath_sha256,
-				       dxd2.relpath_sha256);
-				strcpy(dxd->revision, dxd2.revision);
-				strcpy(dxd->rootdir, dxd2.rootdir);
-				strcpy(dxd->timestamp, dxd2.timestamp);
-				goto free_and_return;
+				} else {
+					/* if there'a an original-dir, restart processing completely */
+					struct dpr_xlate_data dxd2 = DXD_INIT;
+					dpr_xlateWholePath(&dxd2, dpr_data,
+							   new_path,
+							   ignoreState, depth,
+							   original_paf,
+							   whatDoWithOriginalDir);
+
+					dxd->deleted = dxd2.deleted;
+					dxd->dprfs_filetype =
+					    dxd2.dprfs_filetype;
+					strcpy(dxd->finalpath, dxd2.finalpath);
+					dxd->is_accdb = dxd2.is_accdb;
+					dxd->is_osx_bodge = dxd2.is_osx_bodge;
+					dxd->is_part_file = dxd2.is_part_file;
+					strcpy(dxd->payload, dxd2.payload);
+					strcpy(dxd->originaldir,
+					       dxd2.originaldir);
+					strcpy(dxd->relpath, dxd2.relpath);
+					strcpy(dxd->relpath_sha256,
+					       dxd2.relpath_sha256);
+					strcpy(dxd->revision, dxd2.revision);
+					strcpy(dxd->rootdir, dxd2.rootdir);
+					strcpy(dxd->timestamp, dxd2.timestamp);
+					goto free_and_return;
+				}
 			}
 
 			if (*rhs != '\0') {
@@ -3190,7 +3208,7 @@ dpr_cleanedXlateWholePath(struct dpr_xlate_data *dxd,
 				dpr_xlateWholePath(dxd, dpr_data, rhs,
 						   ignoreState, depth,
 						   original_paf,
-						   ignoreOriginalDir);
+						   whatDoWithOriginalDir);
 				goto free_and_return;
 			}
 			goto free_and_return;	//ut_018 on way back
@@ -3327,8 +3345,7 @@ fsus_create_core(const char *gpath, mode_t mode, struct fuse_file_info *fi,
 	forensicLogChangesComing(DPR_DATA, CREAT_KEY, gpath);
 
 	dpr_xlateWholePath(&dxd, DPR_DATA, gpath, true, XWP_DEPTH_MAX, NULL,
-			   false);
-
+			   OBSERVE_ORIGINAL_DIR);
 	if (dxd.dprfs_filetype == DPRFS_FILETYPE_LL
 	    || dxd.dprfs_filetype == DPRFS_FILETYPE_NA
 	    || dxd.dprfs_filetype == DPRFS_FILETYPE_DIR) {
@@ -3599,7 +3616,7 @@ static int fsus_unlink(const char *gpath)
 
 	// log and obtain the directory to remove
 	dpr_xlateWholePath(&dxd, DPR_DATA, gpath, true, XWP_DEPTH_MAX, NULL,
-			   false);
+			   OBSERVE_ORIGINAL_DIR);
 
 	if (dxd.dprfs_filetype == DPRFS_FILETYPE_LL) {
 		rv = fsus_unlink_ll(gpath, &dxd);
@@ -3666,17 +3683,26 @@ static int fsus_unlink_ll(const char *gpath, struct dpr_xlate_data *dxd)
  * Add a later :Dmetadata containing specified string
  */
 static int
-saveDMetadataToFile(struct dpr_state *dpr_data, const char *gpath,
-		    struct dpr_xlate_data dxd, struct metadata_array *md_arr)
+saveDMetadataToFile(struct dpr_state *dpr_data, struct dpr_xlate_data dxd,
+		    struct metadata_array *md_arr)
 {
 	char prv_ll_dm_lnk[PATH_MAX] = "";
 	char ll_dm_lnk[PATH_MAX] = "";
 	char ll_dm_lnk_target[PATH_MAX] = "";
 	char ll_dm_ts_file[PATH_MAX] = "";
 	char dm_ts_file[PATH_MAX] = "";
+	char original_dir[PATH_MAX] = "";
 	int rv;
 
-	DEBUGe('2') debug_msg(DPR_DATA, "%s(): %s\n", __func__, gpath);
+	DEBUGe('2') debug_msg(DPR_DATA, "%s()\n", __func__);
+
+	if (md_arr->original_dir.value[0] == '\0') {
+		DEBUGe('2') debug_msg(DPR_DATA,
+				      "%s(): new original-dir added\n",
+				      __func__);
+		getRelLinkedlistName(original_dir, dxd);
+		strcpy(md_arr->original_dir.value, original_dir);
+	}
 
 	getLinkedlistDMetadataLnk(prv_ll_dm_lnk, dxd);
 	DEBUGe('2') debug_msg(DPR_DATA, "%s(): %s\n", __func__, prv_ll_dm_lnk);
@@ -3818,8 +3844,7 @@ dprfs_beyonduse_ll(struct dpr_state *dpr_data, const char *gpath,
  * Put a directory beyond use
  */
 static int
-dprfs_beyonduse_dir(struct dpr_state *dpr_data, const char *gpath,
-		    struct dpr_xlate_data dxd)
+dprfs_beyonduse_dir(struct dpr_state *dpr_data, struct dpr_xlate_data dxd)
 {
 	struct metadata_array md_arr = MD_ARR_INIT;
 	char ll_dm_lnk[PATH_MAX] = "";
@@ -3827,7 +3852,7 @@ dprfs_beyonduse_dir(struct dpr_state *dpr_data, const char *gpath,
 	char timestamp[TIMESTAMP_SIZE] = "";
 	int rv;
 
-	DEBUGe('2') debug_msg(DPR_DATA, "%s(): %s\n", __func__, gpath);
+	DEBUGe('2') debug_msg(DPR_DATA, "%s()\n", __func__);
 
 	getLinkedlistDMetadataLnk(ll_dm_lnk, dxd);
 	DEBUGe('2') debug_msg(DPR_DATA,
@@ -3843,7 +3868,7 @@ dprfs_beyonduse_dir(struct dpr_state *dpr_data, const char *gpath,
 	getCondensedSystemUTime(timestamp);
 	strcat(md_arr.beyond_use_on.value, timestamp);
 
-	rv = saveDMetadataToFile(dpr_data, gpath, dxd, &md_arr);
+	rv = saveDMetadataToFile(dpr_data, dxd, &md_arr);
 
 	rs_inc(DPR_DATA, &DPR_DATA->renstats_p);
 	util_beyonduseUpdateCounters(0, 1);
@@ -3861,8 +3886,7 @@ static int dprfs_beyonduse(struct dpr_state *dpr_data, const char *path)
 	struct dpr_xlate_data dxd = DXD_INIT;
 
 	dpr_xlateWholePath(&dxd, DPR_DATA, path, false, XWP_DEPTH_MAX, NULL,
-			   false);
-
+			   OBSERVE_ORIGINAL_DIR);
 	if (dxd.dprfs_filetype == DPRFS_FILETYPE_LL) {
 		DEBUGe('2') debug_msg(DPR_DATA,
 				      "%s() LL (gpath=\"%s\")\n",
@@ -3881,7 +3905,7 @@ static int dprfs_beyonduse(struct dpr_state *dpr_data, const char *path)
 		DEBUGe('2') debug_msg(DPR_DATA,
 				      "%s() DIR(gpath=\"%s\")\n",
 				      __func__, path);
-		return dprfs_beyonduse_dir(dpr_data, path, dxd);
+		return dprfs_beyonduse_dir(dpr_data, dxd);
 	}
 	return 0;
 }
@@ -3895,7 +3919,7 @@ static int dprfs_beyonduse(struct dpr_state *dpr_data, const char *path)
 static int
 fsus_rename_dir(struct dpr_state *dpr_data, struct dpr_xlate_data *dxdto,
 		struct dpr_xlate_data *dxdfrom, const char *newpath,
-		const char *oldpath, bool ignoreOriginalDir)
+		const char *oldpath, int whatDoWithOriginalDir)
 {
 	struct metadata_array from_md_arr = MD_ARR_INIT;
 	struct metadata_array to_md_arr = MD_ARR_INIT;
@@ -3919,9 +3943,9 @@ fsus_rename_dir(struct dpr_state *dpr_data, struct dpr_xlate_data *dxdto,
 	md_unload(buffer);
 
 	/* FROM: update metadata */
-	mstrcat(&from_md_arr.others, dpr_data, "renamed-to = ");
-	mstrcat(&from_md_arr.others, dpr_data, to_rel_ll_name);
-	mstrcat(&from_md_arr.others, dpr_data, "/\n");
+	strcpy(from_md_arr.renamed_to.value, to_rel_ll_name);
+	notviaChainToIncludePaf(&from_md_arr.not_via,
+				from_md_arr.original_dir.value);
 	notviaChainToIncludePaf(&from_md_arr.not_via, oldpath);
 
 	/* FROM: save out metadata */
@@ -3942,27 +3966,19 @@ fsus_rename_dir(struct dpr_state *dpr_data, struct dpr_xlate_data *dxdto,
 
 	/* TO: update metadata */
 	getPafForFinalPath(original_dir, *dxdfrom);
-	mstrcat(&to_md_arr.others, dpr_data, "renamed-from = ");
-	mstrcat(&to_md_arr.others, dpr_data, oldpath);
-	mstrcat(&to_md_arr.others, dpr_data, "/\n");
+	strcpy(from_md_arr.renamed_from.value, oldpath);
 	to_md_arr.llid.operation = from_md_arr.llid.operation;
 	strcpy(to_md_arr.llid.value, from_md_arr.llid.value);
 
-	mstrcat(&to_md_arr.others, dpr_data, "original-dir = ");
 	to_md_arr.original_dir.operation = from_md_arr.original_dir.operation;
-	mstrcat(&to_md_arr.others, dpr_data, "/");
-	mstrcat(&to_md_arr.others, dpr_data, original_dir);
-	mstrcat(&to_md_arr.others, dpr_data, "\n");
+	strcpy(to_md_arr.original_dir.value, from_md_arr.original_dir.value);
 	notviaChainToExcludePaf(&to_md_arr.not_via, newpath);
 
 	/* TO: save out metadata */
 	fsus_mkdir_with_metadata(dpr_data, to_rel_ll_name, getDefaultDirMode(),
-				 &to_md_arr, ignoreOriginalDir);
-
+				 &to_md_arr, whatDoWithOriginalDir);
 	rs_inc(DPR_DATA, &DPR_DATA->renstats_p);
 
-	mstrfree(&to_md_arr.others);
-	mstrfree(&from_md_arr.others);
 	return rv;
 }
 
@@ -4040,9 +4056,7 @@ fsus_rename_ll(struct dpr_state *dpr_data, struct dpr_xlate_data *dxdto,
 
 	/* FROM: Update */
 	if (isPartFile == false) {
-		mstrcat(&from_md_arr.others, dpr_data, "renamed-to = ");
-		mstrcat(&from_md_arr.others, dpr_data, to_rel_ll_name);
-		mstrcat(&from_md_arr.others, dpr_data, "\n");
+		strcpy(from_md_arr.renamed_to.value, to_rel_ll_name);
 		notviaChainToIncludePaf(&from_md_arr.not_via, oldpath);
 	}
 	/* FROM: Save out */
@@ -4075,9 +4089,7 @@ fsus_rename_ll(struct dpr_state *dpr_data, struct dpr_xlate_data *dxdto,
 
 	} else {
 		notviaChainToExcludePaf(&to_md_arr.not_via, newpath);
-		mstrcat(&to_md_arr.others, dpr_data, "renamed-from = ");
-		mstrcat(&to_md_arr.others, dpr_data, oldpath);
-		mstrcat(&to_md_arr.others, dpr_data, "\n");
+		strcpy(from_md_arr.renamed_from.value, oldpath);
 
 		strcpy((char *)&to_md_arr.payload_loc.value,
 		       (char *)&from_md_arr.payload_loc.value);
@@ -4132,11 +4144,20 @@ fsus_rename_ll(struct dpr_state *dpr_data, struct dpr_xlate_data *dxdto,
 static int fsus_rename(const char *fulloldpath, const char *fullnewpath,
 		       unsigned int flags)
 {
-	return fsus_rename_core(fulloldpath, fullnewpath, flags, true);
+	int rv;
+	DEBUGe('1') debug_msg(DPR_DATA, LOG_DIVIDER "%s entry\n", __func__);
+	DEBUGe('2') debug_msg(DPR_DATA, " rename \"%s\" -> \"%s\"\n", __func__,
+			      fulloldpath, fullnewpath);
+
+	rv = fsus_rename_core(fulloldpath, fullnewpath, flags, USERSIDE);
+	DEBUGe('2') debug_msg(DPR_DATA,
+			      " %s(): completed with rv=\"%d\"\n", __func__,
+			      rv);
+	return rv;
 }
 
 static int fsus_rename_core(const char *fulloldpath, const char *fullnewpath,
-			    unsigned int flags, bool ignoreOriginalDir)
+			    unsigned int flags, int whatDoWithOriginalDir)
 {
 	struct dpr_xlate_data dxdfrom_prv = DXD_INIT;
 	struct dpr_xlate_data dxdfrom_new = DXD_INIT;
@@ -4167,11 +4188,12 @@ static int fsus_rename_core(const char *fulloldpath, const char *fullnewpath,
 	forensiclog_msg("rename: %s -> %s\n", oldpath, newpath);
 
 	dpr_xlateWholePath(&dxdfrom_prv, DPR_DATA, oldpath, false,
-			   XWP_DEPTH_MAX, NULL, false);
-	dxd_copy(&dxdfrom_new, &dxdfrom_prv);
+			   XWP_DEPTH_MAX, NULL, OBSERVE_ORIGINAL_DIR);
 
 	dpr_xlateWholePath(&dxdto_new, DPR_DATA, newpath, true, XWP_DEPTH_MAX,
-			   NULL, ignoreOriginalDir);
+			   NULL, IGNORE_ORIGINAL_DIR);
+
+	dxd_copy(&dxdfrom_new, &dxdfrom_prv);
 
 	misc_debugDxd(DPR_DATA, '2', &dxdfrom_prv, " dxdfrom_prv: ", __func__);
 	misc_debugDxd(DPR_DATA, '2', &dxdfrom_new, " dxdfrom_new: ", __func__);
@@ -4185,6 +4207,7 @@ static int fsus_rename_core(const char *fulloldpath, const char *fullnewpath,
 		DEBUGe('2') debug_msg(DPR_DATA,
 				      "[WARNING] %s(): stat of paf=\"%s\" failed\n",
 				      __func__, dxdfrom_prv_paf);
+		rv = -EINVAL;
 		goto complete;
 	}
 	if (S_ISDIR(fileStat.st_mode)) {
@@ -4223,9 +4246,8 @@ static int fsus_rename_core(const char *fulloldpath, const char *fullnewpath,
 		DEBUGe('2') debug_msg(DPR_DATA,
 				      " %s(): attempt rename of directory\n",
 				      __func__);
-
 		fsus_rename_dir(DPR_DATA, &dxdto_new, &dxdfrom_prv, newpath,
-				oldpath, ignoreOriginalDir);
+				oldpath, whatDoWithOriginalDir);
 		rv = 0;
 		goto complete;
 	}
@@ -4334,7 +4356,7 @@ static int fsus_truncate_core(const char *gpath, off_t newsize, bool reloading)
 		forensicLogChangesComing(DPR_DATA, RECREATE_KEY, gpath);
 
 	dpr_xlateWholePath(&dxdfrom, DPR_DATA, gpath, false, XWP_DEPTH_MAX,
-			   NULL, false);
+			   NULL, OBSERVE_ORIGINAL_DIR);
 	if (dxdfrom.dprfs_filetype == DPRFS_FILETYPE_LL) {
 		rv = fsus_truncate_core_ll(gpath, &dxdfrom, newsize);
 
@@ -4488,8 +4510,7 @@ fsus_open_core(const char *gpath, struct fuse_file_info *fi, bool useShadowFD)
 			      __func__, gpath, fi);
 
 	dpr_xlateWholePath(&dxd, DPR_DATA, gpath, false, XWP_DEPTH_MAX, NULL,
-			   false);
-
+			   OBSERVE_ORIGINAL_DIR);
 	if (dxd.dprfs_filetype == DPRFS_FILETYPE_LL)
 		getLinkedlistLatestLinkedlistFile(ll_l_ll_file, dxd);
 	else
@@ -4788,8 +4809,7 @@ static void backupDatastore(const char *gpath)
 			      __func__, gpath);
 
 	dpr_xlateWholePath(&dxd, DPR_DATA, gpath, false, XWP_DEPTH_MAX, NULL,
-			   false);
-
+			   OBSERVE_ORIGINAL_DIR);
 	if (dxd.dprfs_filetype != DPRFS_FILETYPE_DS) {
 		DEBUGe('2') debug_msg(DPR_DATA,
 				      "  %s unexpected dxd.dprfs_filetype=\"%d\"\n",
@@ -4854,6 +4874,7 @@ static void backupDatastore(const char *gpath)
 static int fsus_mkdir(const char *gpath, mode_t mode)
 {
 	struct metadata_array md_arr = MD_ARR_INIT;
+	struct stat sb;
 	char currentTS[TIMESTAMP_SIZE] = "";
 	char gpathwithts[PATH_MAX] = "";
 	int rv;
@@ -4867,12 +4888,19 @@ static int fsus_mkdir(const char *gpath, mode_t mode)
 	// now create the timestamed dir
 	createLLID(&md_arr.llid, DPR_DATA, gpathwithts);
 	createLLID(&md_arr.sha256, DPR_DATA, gpathwithts);
-	rv = fsus_mkdir_core(DPR_DATA, gpathwithts, mode, &md_arr, false);
+	rv = fsus_mkdir_core(DPR_DATA, gpathwithts, mode, &md_arr, SERVERSIDE);
 	if (rv == 0) {
 		// and now rename into the user's paf
-		rv = fsus_rename_core(gpathwithts, gpath, 0, true);
-	}
+		if (lstat(gpath, &sb) == -1) {
+			// if dest doesn't exist, link back to dir-ts
+			rv = fsus_rename_core(gpathwithts, gpath, 0,
+					      SERVERSIDE);
 
+		} else {
+			// if the dest does exist, link back to previous
+			rv = fsus_rename_core(gpathwithts, gpath, 0, USERSIDE);
+		}
+	}
 	return rv;
 }
 
@@ -4884,10 +4912,10 @@ static int fsus_mkdir(const char *gpath, mode_t mode)
 static int
 fsus_mkdir_with_metadata(struct dpr_state *dpr_data, const char *gpath,
 			 mode_t mode, struct metadata_array *md_arr,
-			 bool ignoreOriginalDir)
+			 int whatDoWithOriginalDir)
 {
 	return fsus_mkdir_core(dpr_data, gpath, mode, md_arr,
-			       ignoreOriginalDir);
+			       whatDoWithOriginalDir);
 }
 
 /*
@@ -4897,40 +4925,50 @@ fsus_mkdir_with_metadata(struct dpr_state *dpr_data, const char *gpath,
  */
 static int
 fsus_mkdir_core(struct dpr_state *dpr_data, const char *gpath, mode_t mode,
-		struct metadata_array *md_arr, bool ignoreOriginalDir)
+		struct metadata_array *md_arr, int whatDoWithOriginalDir)
 {
-	struct dpr_xlate_data dxd = DXD_INIT;
+	struct dpr_xlate_data dxdprev = DXD_INIT;
+	struct dpr_xlate_data dxdorig = DXD_INIT;
 	char ll_name[PATH_MAX] = "";
 	int rv = 0;
 
-	DEBUGe('1') debug_msg(DPR_DATA, LOG_DIVIDER "%s(gpath=\"%s\")\n",
+	DEBUGi('1') debug_msg(dpr_data, LOG_DIVIDER "%s(gpath=\"%s\")\n",
 			      __func__, gpath);
 
-	forensicLogChangesComing(DPR_DATA, MKDIR_KEY, gpath);
+	forensicLogChangesComing(dpr_data, MKDIR_KEY, gpath);
 
-	dpr_xlateWholePath(&dxd, DPR_DATA, gpath, true, XWP_DEPTH_MAX, NULL,
-			   ignoreOriginalDir);
-
-	if (dxd.deleted == true) {
-		strcpy(md_arr->deleted.value, "false");
-
-		DEBUGe('2') debug_msg(DPR_DATA, "was deleted \n#");
-		DEBUGe('2') debug_msg(DPR_DATA, "gpath = %s\n", gpath);
-		rv = saveDMetadataToFile(dpr_data, gpath, dxd, md_arr);
+	dpr_xlateWholePath(&dxdorig, dpr_data, gpath, true, XWP_DEPTH_MAX, NULL,
+			   OBSERVE_ORIGINAL_DIR);
+	if (whatDoWithOriginalDir == SERVERSIDE) {
+		dpr_xlateWholePath(&dxdprev, dpr_data, gpath, true,
+				   XWP_DEPTH_MAX, NULL, OBSERVE_ORIGINAL_DIR);
 
 	} else {
-		DEBUGe('2') debug_msg(DPR_DATA, "was not deleted \n");
+		dpr_xlateWholePath(&dxdprev, dpr_data, gpath, true,
+				   XWP_DEPTH_MAX, NULL, IGNORE_ORIGINAL_DIR);
+	}
+	if (dxdprev.deleted == true) {
+		strcpy(md_arr->deleted.value, "false");
+
+		DEBUGi('2') debug_msg(dpr_data, "was deleted \n#");
+		DEBUGi('2') debug_msg(dpr_data, "gpath = %s\n", gpath);
+		rv = saveDMetadataToFile(dpr_data, dxdprev, md_arr);
+
+	} else {
+		DEBUGi('2') debug_msg(dpr_data, "was not deleted \n");
 
 		// make the directory
-		getLinkedlistName(ll_name, dxd);
+		getLinkedlistName(ll_name, dxdorig);
 		rv = mkdir(ll_name, getDefaultDirMode());
-		if (rv == -1)
-			rv = dpr_error("dpr_mkdir mkdir");
 
-		rv = saveDMetadataToFile(dpr_data, gpath, dxd, md_arr);
+		if (rv == -1) {
+			rv = dpr_error("dpr_mkdir mkdir");
+		}
+
+		rv = saveDMetadataToFile(dpr_data, dxdprev, md_arr);
 	}
 
-	DEBUGe('1') debug_msg(DPR_DATA,
+	DEBUGe('1') debug_msg(dpr_data,
 			      "  %s completes, rv=\"%d\"\n\n", __func__, rv);
 	return rv;
 }
@@ -4961,11 +4999,10 @@ static int fsus_rmdir(const char *gpath)
 
 	// log and obtain the directory to remove
 	dpr_xlateWholePath(&dxd, DPR_DATA, gpath, true, XWP_DEPTH_MAX, NULL,
-			   false);
-
+			   OBSERVE_ORIGINAL_DIR);
 	// create :latest/:Fmetadata with supercedes line
 	strcpy(md_arr.deleted.value, "true");
-	rv = saveDMetadataToFile(DPR_DATA, gpath, dxd, &md_arr);
+	rv = saveDMetadataToFile(DPR_DATA, dxd, &md_arr);
 
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s completes, rv=\"%d\"\n\n", __func__, rv);
@@ -4995,8 +5032,7 @@ static int fsus_opendir(const char *gpath, struct fuse_file_info *fi)
 			      LOG_DIVIDER "%s(gpath=\"%s\")\n",
 			      __func__, gpath);
 	dpr_xlateWholePath(&dxd, DPR_DATA, gpath, false, XWP_DEPTH_MAX, NULL,
-			   false);
-
+			   OBSERVE_ORIGINAL_DIR);
 	misc_debugDxd(DPR_DATA, '2', &dxd, " dxd: ", __func__);
 	getLinkedlistName(ll_name, dxd);
 
@@ -5088,8 +5124,7 @@ fsus_readdir(const char *gpath, void *buf, fuse_fill_dir_t filler,
 
 	// once again, no /need/ for xlateWholePath -- but note that I need to cast fi->fh
 	dpr_xlateWholePath(&dxd, DPR_DATA, gpath, false, XWP_DEPTH_MAX, NULL,
-			   false);
-
+			   OBSERVE_ORIGINAL_DIR);
 	// Every directory contains at least two entries: . and ..  If my
 	// first call to the system readdir() returns NULL I've got an
 	// error; near as I can tell, that's the only condition under
@@ -5157,7 +5192,7 @@ fsus_readdir(const char *gpath, void *buf, fuse_fill_dir_t filler,
 			goto filler;
 
 		dpr_xlateWholePath(&dxd, DPR_DATA, paf, false, XWP_DEPTH_MAX,
-				   NULL, false);
+				   NULL, OBSERVE_ORIGINAL_DIR);
 
 		if (*dxd.rootdir == '\0' || dxd.deleted == true) {
 			DEBUGe('2') debug_msg(DPR_DATA, " skipping\n", paf);
@@ -5310,8 +5345,7 @@ fsus_readdir(const char *gpath, void *buf, fuse_fill_dir_t filler,
 				      dname);
 
 		dpr_xlateWholePath(&dxd, DPR_DATA, paf, false, XWP_DEPTH_MAX,
-				   NULL, false);
-
+				   NULL, OBSERVE_ORIGINAL_DIR);
 		if (*dxd.rootdir == '\0' || dxd.deleted == true) {
 
 			DEBUGe('2') debug_msg(DPR_DATA, " skipping\n", paf);
@@ -5385,8 +5419,7 @@ static int fsus_releasedir(const char *gpath, struct fuse_file_info *fi)
 			      LOG_DIVIDER "%s(gpath=\"%s\")\n",
 			      __func__, gpath);
 	dpr_xlateWholePath(&dxd, DPR_DATA, gpath, false, XWP_DEPTH_MAX, NULL,
-			   false);
-
+			   OBSERVE_ORIGINAL_DIR);
 	getLinkedlistName(filename_dir, dxd);
 	DEBUGe('2') debug_msg(DPR_DATA,
 			      "%s(fpath=\"%s\")\n", __func__, filename_dir);
@@ -5426,7 +5459,7 @@ static int fsus_readlink(const char *gpath, char *link, size_t size)
 			      LOG_DIVIDER "%s(gpath=\"%s\")\n",
 			      __func__, gpath);
 	dpr_xlateWholePath(&dxd, DPR_DATA, gpath, true, XWP_DEPTH_MAX, NULL,
-			   false);
+			   OBSERVE_ORIGINAL_DIR);
 
 	getLinkedlistName(ll_name, dxd);
 	DEBUGe('2') debug_msg(DPR_DATA,
@@ -5472,10 +5505,9 @@ static int fsus_symlink(const char *gpath, const char *link)
 	strcpy(gpath2, gpath);
 
 	dpr_xlateWholePath(&dxd, DPR_DATA, gpath, true, XWP_DEPTH_MAX, NULL,
-			   false);
+			   OBSERVE_ORIGINAL_DIR);
 	dpr_xlateWholePath(&dxd2, DPR_DATA, gpath2, true, XWP_DEPTH_MAX, NULL,
-			   false);
-
+			   OBSERVE_ORIGINAL_DIR);
 	getLinkedlistName(ll_name, dxd);
 	DEBUGe('2') debug_msg(DPR_DATA, " %s(fpath=\"%s\")\n", __func__,
 			      ll_name);
@@ -5510,10 +5542,9 @@ static int fsus_link(const char *gpath, const char *newpath)
 	forensicLogChangesComing(DPR_DATA, LINK_KEY, gpath);
 
 	dpr_xlateWholePath(&dxdold, DPR_DATA, gpath, true, XWP_DEPTH_MAX, NULL,
-			   false);
+			   OBSERVE_ORIGINAL_DIR);
 	dpr_xlateWholePath(&dxdnew, DPR_DATA, newpath, true, XWP_DEPTH_MAX,
-			   NULL, false);
-
+			   NULL, OBSERVE_ORIGINAL_DIR);
 	getLinkedlistName(old_ll_name, dxdold);
 	DEBUGe('2') debug_msg(DPR_DATA,
 			      " %s(fpath=\"%s\")\n", __func__, old_ll_name);
@@ -5558,8 +5589,7 @@ static int fsus_getattr(const char *gpath, struct stat *statbuf)
 			      __func__, gpath2);
 
 	dpr_xlateWholePath(&dxd, DPR_DATA, gpath2, false, XWP_DEPTH_MAX, NULL,
-			   false);
-
+			   OBSERVE_ORIGINAL_DIR);
 	// in this situation, a getattr against a linkedlist should visit the head file,
 	// a getattr against anything else should visit the linkedlist name.
 	// An easy way to solve this is to store in dxd whether this is a linkedlist or
@@ -5603,8 +5633,7 @@ static int fsus_chmod(const char *gpath, mode_t mode)
 	forensicLogChangesComing(DPR_DATA, CHMOD_KEY, gpath);
 
 	dpr_xlateWholePath(&dxd, DPR_DATA, gpath, false, XWP_DEPTH_MAX, NULL,
-			   false);
-
+			   OBSERVE_ORIGINAL_DIR);
 	if (dxd.dprfs_filetype == DPRFS_FILETYPE_LL) {
 		rv = fsus_chmod_ll(&dxd, mode);
 
@@ -5665,8 +5694,7 @@ static int fsus_chown(const char *gpath, uid_t uid, gid_t gid)
 	forensicLogChangesComing(DPR_DATA, CHOWN_KEY, gpath);
 
 	dpr_xlateWholePath(&dxd, DPR_DATA, gpath, true, XWP_DEPTH_MAX, NULL,
-			   false);
-
+			   OBSERVE_ORIGINAL_DIR);
 	getLinkedlistName(ll_name, dxd);
 	DEBUGe('2') debug_msg(DPR_DATA, " %s(fpath=\"%s\")\n", __func__,
 			      ll_name);
@@ -5701,8 +5729,7 @@ static int fsus_statfs(const char *gpath, struct statvfs *statv)
 
 	DEBUGe('1') debug_msg(DPR_DATA, "%s(gpath=\"%s\")\n", __func__, gpath);
 	dpr_xlateWholePath(&dxd, DPR_DATA, gpath, true, XWP_DEPTH_MAX, "",
-			   false);
-
+			   OBSERVE_ORIGINAL_DIR);
 	// get stats for underlying filesystem
 	getLinkedlistName(ll_name, dxd);
 	DEBUGe('2') debug_msg(DPR_DATA, " %s(fpath=\"%s\")\n", __func__,
@@ -5738,8 +5765,7 @@ static int fsus_access(const char *gpath, int mask)
 			      LOG_DIVIDER "%s(gpath=\"%s\")\n", __func__,
 			      gpath);
 	dpr_xlateWholePath(&dxd, DPR_DATA, gpath, true, XWP_DEPTH_MAX, NULL,
-			   false);
-
+			   OBSERVE_ORIGINAL_DIR);
 	getLinkedlistName(ll_name, dxd);
 	DEBUGe('2') debug_msg(DPR_DATA, " %s(fpath=\"%s\")\n", __func__,
 			      ll_name);
@@ -5769,8 +5795,7 @@ fsus_setxattr(const char *gpath, const char *name, const char *value,
 	forensicLogChangesComing(DPR_DATA, SETXATTR_KEY, gpath);
 
 	dpr_xlateWholePath(&dxd, DPR_DATA, gpath, true, XWP_DEPTH_MAX, NULL,
-			   false);
-
+			   OBSERVE_ORIGINAL_DIR);
 	getLinkedlistLatestLinkedlistFile(paf, dxd);
 	DEBUGe('2') debug_msg(DPR_DATA, " %s(fpath=\"%s\")\n", __func__, paf);
 
@@ -5795,8 +5820,7 @@ fsus_getxattr(const char *gpath, const char *name, char *value, size_t size)
 			      LOG_DIVIDER "%s(gpath=\"%s\")\n",
 			      __func__, gpath);
 	dpr_xlateWholePath(&dxd, DPR_DATA, gpath, true, XWP_DEPTH_MAX, NULL,
-			   false);
-
+			   OBSERVE_ORIGINAL_DIR);
 	getLinkedlistLatestLinkedlistFile(paf, dxd);
 	DEBUGe('2') debug_msg(DPR_DATA, " %s(fpath=\"%s\")\n", __func__, paf);
 
@@ -5820,8 +5844,7 @@ static int fsus_listxattr(const char *gpath, char *list, size_t size)
 			      LOG_DIVIDER "%s(gpath=\"%s\")\n",
 			      __func__, gpath);
 	dpr_xlateWholePath(&dxd, DPR_DATA, gpath, true, XWP_DEPTH_MAX, NULL,
-			   false);
-
+			   OBSERVE_ORIGINAL_DIR);
 	getLinkedlistLatestLinkedlistFile(paf, dxd);
 	DEBUGe('2') debug_msg(DPR_DATA, " %s(fpath=\"%s\")\n", __func__, paf);
 
@@ -5847,8 +5870,7 @@ static int fsus_removexattr(const char *gpath, const char *name)
 	forensicLogChangesComing(DPR_DATA, REMOVEXATTR_KEY, gpath);
 
 	dpr_xlateWholePath(&dxd, DPR_DATA, gpath, true, XWP_DEPTH_MAX, NULL,
-			   false);
-
+			   OBSERVE_ORIGINAL_DIR);
 	getLinkedlistLatestLinkedlistFile(paf, dxd);
 	DEBUGe('2') debug_msg(DPR_DATA, " %s(fpath=\"%s\")\n", __func__, paf);
 
@@ -6029,8 +6051,7 @@ static int fsus_mknod(const char *gpath, mode_t mode, dev_t dev)
 	forensicLogChangesComing(DPR_DATA, MKNOD_KEY, gpath);
 
 	dpr_xlateWholePath(&dxd, DPR_DATA, gpath, true, XWP_DEPTH_MAX, NULL,
-			   false);
-
+			   OBSERVE_ORIGINAL_DIR);
 	// On Linux this could just be 'mknod(gpath, mode, rdev)' but this
 	//  is more portable
 	getLinkedlistName(ll_name, dxd);
@@ -6077,13 +6098,14 @@ static int fsus_utimens(const char *gpath, const struct timespec ts[2])
 	forensicLogChangesComing(DPR_DATA, UTIME_KEY, gpath);
 
 	dpr_xlateWholePath(&dxd, DPR_DATA, gpath, true, XWP_DEPTH_MAX, NULL,
-			   false);
-
+			   OBSERVE_ORIGINAL_DIR);
 	rv = -1;
 	if (dxd.dprfs_filetype == DPRFS_FILETYPE_LL)
 		rv = fsus_utimens_ll(&dxd, ts);
+
 	else if (dxd.dprfs_filetype == DPRFS_FILETYPE_DS)
 		rv = fsus_utimens_ds(&dxd, ts);
+
 	else
 		DEBUGe('2') debug_msg(DPR_DATA,
 				      "  %s() unexpected dxd.dprfs_filetype=\"%d\"\n",
