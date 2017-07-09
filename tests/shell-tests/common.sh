@@ -95,3 +95,17 @@ function testStringEqual()
     fi
     return 0
 }
+
+function testContents()
+{
+    TEXT1=`cat $1`
+    if [ "$TEXT1" == "$2" ]
+    then
+	return 0
+    else
+	printf "Expected '$2', got '$TEXT1'\n"
+	# echo "$2" | base64
+	# echo "$TEXT1" | base64
+	return 1
+    fi
+}

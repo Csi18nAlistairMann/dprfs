@@ -11,6 +11,7 @@
 ./test007.sh
 ./test008.sh
 ./test009.sh
+./test010.sh
 ./test020.sh
 ./test021.sh
 ./test022.sh
