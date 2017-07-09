@@ -3297,12 +3297,21 @@ fsus_create(const char *gpath, mode_t mode, struct fuse_file_info *fi)
 	struct metadata_array md_arr = MD_ARR_INIT;
 	bool create_file_itself = true;
 	unsigned int payload_loc_src = PAYLOAD_LOC_SRC_NEW;
+	int rv;
+
+	DEBUGe('1') debug_msg(DPR_DATA,
+			      LOG_DIVIDER "%s() entry: gpath=\"%s\"\n",
+			      __func__, gpath);
 
 	createLLID(&md_arr.llid, DPR_DATA, gpath);
 	createLLID(&md_arr.sha256, DPR_DATA, gpath);
 
-	return fsus_create_core(gpath, mode, fi, create_file_itself, &md_arr,
-				payload_loc_src);
+	rv = fsus_create_core(gpath, mode, fi, create_file_itself, &md_arr,
+			      payload_loc_src);
+
+	DEBUGe('1') debug_msg(DPR_DATA, "%s() exit, rv=\"%d\"\n\n", __func__,
+			      rv);
+	return rv;
 }
 
 /*
@@ -3356,19 +3365,21 @@ fsus_create_core(const char *gpath, mode_t mode, struct fuse_file_info *fi,
 		makeAndPopulateNewRevisionTSDir(DPR_DATA, gpath, &dxd, md_arr,
 						LINKEDLIST_CREATE,
 						payload_loc_src);
+		rv = 0;
 		if (create_file_itself)
-			fsus_create_core_ll(&dxd, mode, fi);
+			rv = fsus_create_core_ll(&dxd, mode, fi);
 
 	} else if (dxd.dprfs_filetype == DPRFS_FILETYPE_DS) {
+		rv = 0;
 		if (create_file_itself)
-			fsus_create_core_ds(&dxd, mode, fi);
+			rv = fsus_create_core_ds(&dxd, mode, fi);
 
 	} else {
 		DEBUGe('2') debug_msg(DPR_DATA,
 				      " %s unexpected dxd.dprfs_filetype=\"%d\"\n",
 				      __func__, dxd.dprfs_filetype);
+		rv = -1;
 	}
-	rv = 0;
 	DEBUGe('2') debug_msg(DPR_DATA,
 			      "  %s completes, rv=\"%d\"\n\n", __func__, rv);
 
@@ -3387,13 +3398,13 @@ static int fsus_create_core_ds(struct dpr_xlate_data *dxd, mode_t mode,
 	int fp;
 	int rv;
 
-	rv = 0;
 	getPafForOrdinaryFile(paf, *dxd);
 	DEBUGe('2') debug_msg(DPR_DATA, LOG_DIVIDER " %s() paf=\"%s\"\n",
 			      __func__, paf);
 
 	if (!dxd->is_accdb) {
 		fp = open(paf, fi->flags, mode);
+
 	} else {
 		strcpy(accdb, DATASTORE_PATH);
 		strcat(accdb, "/");
@@ -3411,26 +3422,33 @@ static int fsus_create_core_ds(struct dpr_xlate_data *dxd, mode_t mode,
 		    (DPR_DATA, "  %s() accdb target \"%s\"\n", __func__, accdb);
 		DEBUGe('3') debug_msg
 		    (DPR_DATA, "  %s() accdb softlink \"%s\"\n", __func__, paf);
+
 		int flags = O_EXCL;
 		flags = ~flags;
 		flags &= fi->flags;
+		flags &= ~O_NOFOLLOW;
 		fp = open(paf, flags, mode);
 	}
+
 	DEBUGe('2') debug_msg
 	    (DPR_DATA, " %s() receives fd=\"%d\"\n", __func__, fp);
+
 	if (fp == -1) {
-		rv = dpr_error("fsus_create_core_ds creat");
+		rv = -1;
+		dpr_error("fsus_create_core_ds creat");
 		DEBUGe('2') debug_msg
 		    (DPR_DATA,
 		     "  %s() unable to creat() file \"%s\"\n", __func__, paf);
-	}
 
-	fi->fh = fp;
-	ea_filetype_addElement(DPR_DATA, fi->fh, dxd->dprfs_filetype);
-	DEBUGe('2') debug_msg
-	    (DPR_DATA,
-	     " \"%s\" gets file descriptor \"%" PRIu64 "\"\n",
-	     paf, ea_shadowFile_getValueOrKey(DPR_DATA, fi));
+	} else {
+		rv = 0;
+		fi->fh = fp;
+		ea_filetype_addElement(DPR_DATA, fi->fh, dxd->dprfs_filetype);
+		DEBUGe('2') debug_msg
+		    (DPR_DATA,
+		     " \"%s\" gets file descriptor \"%" PRIu64 "\"\n",
+		     paf, ea_shadowFile_getValueOrKey(DPR_DATA, fi));
+	}
  error:
 	return rv;
 }
@@ -3442,7 +3460,6 @@ static int fsus_create_core_ll(struct dpr_xlate_data *dxd, mode_t mode,
 	int fp;
 	int rv;
 
-	rv = 0;
 	getLinkedlistLatestLinkedlistFile(paf, *dxd);
 	DEBUGe('2') debug_msg(DPR_DATA, LOG_DIVIDER " %s() paf=\"%s\"\n",
 			      __func__, paf);
@@ -3452,17 +3469,21 @@ static int fsus_create_core_ll(struct dpr_xlate_data *dxd, mode_t mode,
 	    (DPR_DATA, " %s() receives fd=\"%d\"\n", __func__, fp);
 
 	if (fp == -1) {
-		rv = dpr_error("fsus_create_core_ll creat");
+		rv = -1;
+		dpr_error("fsus_create_core_ll creat");
 		DEBUGe('2') debug_msg
 		    (DPR_DATA,
 		     "  %s() unable to creat() file \"%s\"\n", __func__, paf);
+
+	} else {
+		rv = 0;
+		fi->fh = fp;
+		ea_filetype_addElement(DPR_DATA, fi->fh, DPRFS_FILETYPE_LL);
+		DEBUGe('2') debug_msg
+		    (DPR_DATA,
+		     " \"%s\" gets file descriptor \"%" PRIu64 "\"\n",
+		     paf, ea_shadowFile_getValueOrKey(DPR_DATA, fi));
 	}
-	fi->fh = fp;
-	ea_filetype_addElement(DPR_DATA, fi->fh, DPRFS_FILETYPE_LL);
-	DEBUGe('2') debug_msg
-	    (DPR_DATA,
-	     " \"%s\" gets file descriptor \"%" PRIu64 "\"\n",
-	     paf, ea_shadowFile_getValueOrKey(DPR_DATA, fi));
 	return rv;
 }
 
@@ -3555,7 +3576,7 @@ makeAndPopulateNewRevisionTSDir(struct dpr_state *dpr_data,
 			    (DPR_DATA,
 			     "[WARNING] %s()(1) can't mkdir \"%s\" saying \"%s\"\n",
 			     __func__, ll_name, strerror(errno));
-			rv = dpr_error
+			dpr_error
 			    ("makeAndPopulateNewRevisionTSDir making ll_name");
 		}
 	}
@@ -3569,8 +3590,7 @@ makeAndPopulateNewRevisionTSDir(struct dpr_state *dpr_data,
 		     __func__, ll_rts_dir, strerror(errno), errno, getuid(),
 		     geteuid());
 
-		rv = dpr_error
-		    ("makeAndPopulateNewRevisionTSDir making rts_dir");
+		dpr_error("makeAndPopulateNewRevisionTSDir making rts_dir");
 	}
 	// softlink to timestamp directory with :latest
 	if (watdo == LINKEDLIST_EXTEND
@@ -3583,7 +3603,7 @@ makeAndPopulateNewRevisionTSDir(struct dpr_state *dpr_data,
 		    (DPR_DATA,
 		     "[WARNING] %s() can't symlink \"%s\" to \"%s\"\n",
 		     __func__, rts_dir, ll_l_lnk, strerror(errno));
-		rv = dpr_error("makeAndPopulateNewRevisionTSDir doing symlink");
+		dpr_error("makeAndPopulateNewRevisionTSDir doing symlink");
 	}
 
 	if (watdo == LINKEDLIST_EXTEND)
@@ -3645,7 +3665,7 @@ static int fsus_unlink_ds(struct dpr_xlate_data *dxd)
 	getPafForOrdinaryFile(paf, *dxd);
 	rv = unlink(paf);
 	if (rv == -1)
-		rv = dpr_error("fsus_unlink_ds unlink");
+		dpr_error("fsus_unlink_ds unlink");
 	return rv;
 }
 
@@ -4146,12 +4166,13 @@ static int fsus_rename(const char *fulloldpath, const char *fullnewpath,
 {
 	int rv;
 	DEBUGe('1') debug_msg(DPR_DATA, LOG_DIVIDER "%s entry\n", __func__);
-	DEBUGe('2') debug_msg(DPR_DATA, " rename \"%s\" -> \"%s\"\n", fulloldpath, fullnewpath);
+	DEBUGe('2') debug_msg(DPR_DATA, " rename \"%s\" -> \"%s\"\n",
+			      fulloldpath, fullnewpath);
 
 	rv = fsus_rename_core(fulloldpath, fullnewpath, flags, USERSIDE);
-	DEBUGe('2') debug_msg(DPR_DATA,
-			      " %s(): completed with rv=\"%d\"\n", __func__,
-			      rv);
+
+	DEBUGe('1') debug_msg(DPR_DATA,
+			      "  %s completes, rv=\"%d\"\n\n", __func__, rv);
 	return rv;
 }
 
@@ -4295,7 +4316,7 @@ static int fsus_rename_core(const char *fulloldpath, const char *fullnewpath,
 
 	rv = rename(dxdfrom_prv_paf, dxdto_new_paf);
 	if (rv == -1)
-		rv = dpr_error("fsus_rename rename");
+		dpr_error("fsus_rename rename");
 	rs_inc(DPR_DATA, &DPR_DATA->renstats_p);
 
 	goto complete;
@@ -4335,13 +4356,25 @@ static int fsus_recreate(const char *gpath)
 static int fsus_truncate(const char *gpath, off_t newsize)
 {
 	bool reloading = false;
-	return fsus_truncate_core(gpath, newsize, reloading);
+	int rv;
+
+	DEBUGe('1') debug_msg(DPR_DATA,
+			      LOG_DIVIDER
+			      "%s(gpath=\"%s\" size=\"%d\"\n", __func__, gpath,
+			      (long)newsize);
+
+	rv = fsus_truncate_core(gpath, newsize, reloading);
+
+	DEBUGe('1') debug_msg(DPR_DATA,
+			      "  %s() completes, rv=\"%d\"\n\n", __func__, rv);
+
+	return rv;
 }
 
 static int fsus_truncate_core(const char *gpath, off_t newsize, bool reloading)
 {
 	struct dpr_xlate_data dxdfrom = DXD_INIT;
-	int rv;
+	int rv = 0;
 
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      LOG_DIVIDER
@@ -4356,6 +4389,8 @@ static int fsus_truncate_core(const char *gpath, off_t newsize, bool reloading)
 
 	dpr_xlateWholePath(&dxdfrom, DPR_DATA, gpath, false, XWP_DEPTH_MAX,
 			   NULL, OBSERVE_ORIGINAL_DIR);
+
+	rv = 0;
 	if (dxdfrom.dprfs_filetype == DPRFS_FILETYPE_LL) {
 		rv = fsus_truncate_core_ll(gpath, &dxdfrom, newsize);
 
@@ -4368,6 +4403,7 @@ static int fsus_truncate_core(const char *gpath, off_t newsize, bool reloading)
 				      "  %s() unexpected dxd.dprfs_filetype=\"%d\"\n",
 				      __func__, dxdfrom.dprfs_filetype);
 	}
+
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s() completes, rv=\"%d\"\n\n", __func__, rv);
 
@@ -4447,10 +4483,13 @@ static int fsus_truncate_core_ll(const char *gpath,
 				      __func__, ll_l_ll_file);
 
 		fp = fopen(ll_l_ll_file, "w");
-		if (fp == NULL)
-			rv = dpr_error("dpr_truncate_core_ll creat");
-		else
+		if (fp == NULL) {
+			rv = -1;
+			dpr_error("dpr_truncate_core_ll creat");
+
+		} else {
 			rv = fclose(fp);
+		}
 	}
 	mstrfree(&md_arr.others);
 	return rv;
@@ -4491,10 +4530,15 @@ static int fsus_open_shadow(const char *gpath, struct fuse_file_info *fi)
 static int fsus_open(const char *gpath, struct fuse_file_info *fi)
 {
 	bool useShadowFD = false;
+	int rv;
 	DEBUGe('1') debug_msg(DPR_DATA, LOG_DIVIDER
 			      "%s(gpath\"%s\", fi=0x%08x)\n", __func__, gpath,
 			      fi);
-	return fsus_open_core(gpath, fi, useShadowFD);
+	rv = fsus_open_core(gpath, fi, useShadowFD);
+
+	DEBUGe('1') debug_msg(DPR_DATA,
+			      "  %s() completes, rv=\"%d\"\n\n", __func__, rv);
+	return rv;
 }
 
 static int
@@ -4502,6 +4546,7 @@ fsus_open_core(const char *gpath, struct fuse_file_info *fi, bool useShadowFD)
 {
 	struct dpr_xlate_data dxd = DXD_INIT;
 	char ll_l_ll_file[PATH_MAX] = "";
+	int flags;
 	int fp;
 
 	DEBUGe('1') debug_msg(DPR_DATA,
@@ -4516,10 +4561,11 @@ fsus_open_core(const char *gpath, struct fuse_file_info *fi, bool useShadowFD)
 		// can't use gpath straight, given payload-at redirect
 		getPafForOrdinaryFile(ll_l_ll_file, dxd);
 
+	flags = fi->flags & ~O_NOFOLLOW;
 	DEBUGe('2') debug_msg(DPR_DATA,
 			      " %s(): linkedlist_paf=\"%s\" flags=\"%d\"\n",
-			      __func__, ll_l_ll_file, fi->flags);
-	fp = open(ll_l_ll_file, fi->flags, getModeBodge());
+			      __func__, ll_l_ll_file, flags);
+	fp = open(ll_l_ll_file, flags, getModeBodge());
 
 	DEBUGe('2') debug_msg
 	    (DPR_DATA, " %s() receives fd=\"%d\"\n", __func__, fp);
@@ -4588,8 +4634,10 @@ fsus_read(const char *gpath, char *buf, size_t size, off_t offset,
 	rv = pread(ea_shadowFile_getValueOrKey(DPR_DATA, fi), buf, size,
 		   offset);
 	if (rv == -1)
-		rv = dpr_error("fsus_read read");
+		dpr_error("fsus_read read");
 
+	DEBUGe('1') debug_msg(DPR_DATA,
+			      "  %s() completes, rv=\"%d\"\n\n", __func__, rv);
 	return rv;
 }
 
@@ -4659,7 +4707,7 @@ fsus_write(const char *gpath, const char *buf, size_t size, off_t offset,
 	rv = pwrite(ea_shadowFile_getValueOrKey(DPR_DATA, fi), buf, size,
 		    offset);
 	if (rv == -1)
-		rv = dpr_error("fsus_write pwrite");
+		dpr_error("fsus_write pwrite");
 
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s() completes, rv=\"%d\"\n\n", __func__, rv);
@@ -4700,6 +4748,9 @@ static int fsus_flush(const char *gpath, struct fuse_file_info *fi)
 {
 	int res;
 	(void)gpath;
+
+	DEBUGe('1') debug_msg(DPR_DATA, LOG_DIVIDER "%s(gpath=\"%s\")\n",
+			      __func__, gpath);
 
 	if (gpath == NULL)
 		// no need to get fpath on this one, since I work from fi->fh not the gpath
@@ -4878,6 +4929,9 @@ static int fsus_mkdir(const char *gpath, mode_t mode)
 	char gpathwithts[PATH_MAX] = "";
 	int rv;
 
+	DEBUGe('1') debug_msg(DPR_DATA, LOG_DIVIDER "%s(gpath=\"%s\")\n",
+			      __func__, gpath);
+
 	// modify expected paf to include a timestamp
 	getCondensedSystemUTime(currentTS);
 	strcpy(gpathwithts, gpath);
@@ -4900,6 +4954,10 @@ static int fsus_mkdir(const char *gpath, mode_t mode)
 			rv = fsus_rename_core(gpathwithts, gpath, 0, USERSIDE);
 		}
 	}
+
+	DEBUGe('1') debug_msg(DPR_DATA,
+			      "  %s completes, rv=\"%d\"\n\n", __func__, rv);
+
 	return rv;
 }
 
@@ -4961,7 +5019,7 @@ fsus_mkdir_core(struct dpr_state *dpr_data, const char *gpath, mode_t mode,
 		rv = mkdir(ll_name, getDefaultDirMode());
 
 		if (rv == -1) {
-			rv = dpr_error("dpr_mkdir mkdir");
+			dpr_error("dpr_mkdir mkdir");
 		}
 
 		rv = saveDMetadataToFile(dpr_data, dxdprev, md_arr);
@@ -5269,7 +5327,7 @@ fsus_readdir(const char *gpath, void *buf, fuse_fill_dir_t filler,
 			      __func__, d->shadow_dp, TMP_PATH, cleaned, hashel,
 			      gpathandstroke);
 	if (d->shadow_dp == NULL) {
-		rv = dpr_error("2fsus_readdir shadow_d->dp");
+		dpr_error("2fsus_readdir shadow_d->dp");
 		goto complete_all;
 	}
 
@@ -5466,7 +5524,7 @@ static int fsus_readlink(const char *gpath, char *link, size_t size)
 
 	rv = readlink(ll_name, link, size - 1);
 	if (rv == -1) {
-		rv = dpr_error("fsus_readlink readlink");
+		dpr_error("fsus_readlink readlink");
 	} else {
 		link[rv] = '\0';
 		rv = 0;
@@ -5516,7 +5574,7 @@ static int fsus_symlink(const char *gpath, const char *link)
 
 	rv = symlink(ll_name2, ll_name);
 	if (rv == -1)
-		rv = dpr_error("fsus_symlink symlink");
+		dpr_error("fsus_symlink symlink");
 
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s() completes, rv=\"%d\"\n\n", __func__, rv);
@@ -5553,7 +5611,7 @@ static int fsus_link(const char *gpath, const char *newpath)
 
 	rv = link(old_ll_name, new_ll_name);
 	if (rv == -1)
-		rv = dpr_error("fsus_link link");
+		dpr_error("fsus_link link");
 
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s completes, rv=\"%d\"\n\n", __func__, rv);
@@ -5661,7 +5719,7 @@ static int fsus_chmod_ds(struct dpr_xlate_data *dxd, mode_t mode)
 
 	rv = chmod(paf, mode);
 	if (rv == -1)
-		rv = dpr_error("fsus_chmod_ds chmod");
+		dpr_error("fsus_chmod_ds chmod");
 	return rv;
 }
 
@@ -5675,7 +5733,7 @@ static int fsus_chmod_ll(struct dpr_xlate_data *dxd, mode_t mode)
 
 	rv = chmod(paf, mode);
 	if (rv == -1)
-		rv = dpr_error("fsus_chmod_ll chmod_ll");
+		dpr_error("fsus_chmod_ll chmod_ll");
 	return rv;
 }
 
@@ -5700,7 +5758,7 @@ static int fsus_chown(const char *gpath, uid_t uid, gid_t gid)
 
 	rv = lchown(ll_name, uid, gid);
 	if (rv == -1)
-		rv = dpr_error("fsus_chown chown");
+		dpr_error("fsus_chown chown");
 
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s() completes, rv=\"%d\"\n\n", __func__, rv);
@@ -5736,7 +5794,7 @@ static int fsus_statfs(const char *gpath, struct statvfs *statv)
 
 	rv = statvfs(ll_name, statv);
 	if (rv == -1)
-		rv = dpr_error("fsus_statfs statvfs");
+		dpr_error("fsus_statfs statvfs");
 
 	DEBUGe('1') debug_msg(DPR_DATA, " %s() returns rv=\"%d\")\n\n",
 			      __func__, rv);
@@ -5771,7 +5829,7 @@ static int fsus_access(const char *gpath, int mask)
 
 	rv = access(ll_name, mask);
 	if (rv == -1)
-		rv = dpr_error("fsus_access access");
+		dpr_error("fsus_access access");
 
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s() completes, rv=\"%d\"\n\n", __func__, rv);
@@ -5800,7 +5858,7 @@ fsus_setxattr(const char *gpath, const char *name, const char *value,
 
 	rv = lsetxattr(paf, name, value, size, flags);
 	if (rv == -1)
-		rv = dpr_error("fsus_setxattr lsetxattr");
+		dpr_error("fsus_setxattr lsetxattr");
 
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s() completes, rv=\"%d\"\n\n", __func__, rv);
@@ -5849,7 +5907,7 @@ static int fsus_listxattr(const char *gpath, char *list, size_t size)
 
 	rv = llistxattr(paf, list, size);
 	if (rv == -1)
-		rv = dpr_error("fsus_listxattr llistxattr");
+		dpr_error("fsus_listxattr llistxattr");
 
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s() completes, rv=\"%d\"\n\n", __func__, rv);
@@ -5875,7 +5933,7 @@ static int fsus_removexattr(const char *gpath, const char *name)
 
 	rv = lremovexattr(paf, name);
 	if (rv == -1)
-		rv = dpr_error("fsus_removexattr lrmovexattr");
+		dpr_error("fsus_removexattr lrmovexattr");
 
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s completes, rv=\"%d\"\n\n", __func__, rv);
@@ -5982,7 +6040,7 @@ fsus_ftruncate(const char *gpath, off_t offset, struct fuse_file_info *fi)
 
 	rv = ftruncate(ea_shadowFile_getValueOrKey(DPR_DATA, fi), offset);
 	if (rv == -1)
-		rv = dpr_error("fsus_ftruncate ftruncate");
+		dpr_error("fsus_ftruncate ftruncate");
 
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s() completes, rv=\"%d\"\n\n", __func__, rv);
@@ -6021,7 +6079,7 @@ fsus_fgetattr(const char *gpath, struct stat *statbuf,
 		rv = fstat(ea_shadowFile_getValueOrKey(DPR_DATA, fi), statbuf);
 
 	if (rv == -1)
-		rv = dpr_error("fsus_fgetattr fstat");
+		dpr_error("fsus_fgetattr fstat");
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s completes, rv=\"%d\"\n\n", __func__, rv);
 	return rv;
@@ -6060,23 +6118,23 @@ static int fsus_mknod(const char *gpath, mode_t mode, dev_t dev)
 	if (S_ISREG(mode)) {
 		rv = open(ll_name, O_CREAT | O_EXCL | O_WRONLY, mode);
 		if (rv == -1) {
-			rv = dpr_error("fsus_mknod open");
+			dpr_error("fsus_mknod open");
 
 		} else {
 			rv = close(rv);
 			if (rv == -1)
-				rv = dpr_error("fsus_mknod close");
+				dpr_error("fsus_mknod close");
 		}
 
 	} else if (S_ISFIFO(mode)) {
 		rv = mkfifo(ll_name, mode);
 		if (rv == -1)
-			rv = dpr_error("fsus_mknod mkfifo");
+			dpr_error("fsus_mknod mkfifo");
 
 	} else {
 		rv = mknod(ll_name, mode, dev);
 		if (rv == -1)
-			rv = dpr_error("fsus_mknod mknod");
+			dpr_error("fsus_mknod mknod");
 	}
 
 	DEBUGe('1') debug_msg(DPR_DATA,
@@ -6152,8 +6210,10 @@ static int xmp_read_buf(const char *gpath, struct fuse_bufvec **bufp,
 {
 	struct fuse_bufvec *src;
 	(void)gpath;
+	int rv;
 
-	DEBUGe('2') debug_msg(DPR_DATA, LOG_DIVIDER "%s()\n", __func__);
+	DEBUGe('1') debug_msg(DPR_DATA, LOG_DIVIDER "%s(gpath=\"%s\")\n",
+			      __func__, gpath);
 
 	src = malloc(sizeof(struct fuse_bufvec));
 	if (src == NULL)
@@ -6166,8 +6226,11 @@ static int xmp_read_buf(const char *gpath, struct fuse_bufvec **bufp,
 	src->buf[0].pos = offset;
 
 	*bufp = src;
+	rv = 0;
 
-	return 0;
+	DEBUGe('1') debug_msg(DPR_DATA,
+			      "  %s completes, rv=\"%d\"\n\n", __func__, rv);
+	return rv;
 }
 
 static int xmp_write_buf(const char *gpath, struct fuse_bufvec *buf,
@@ -6178,13 +6241,14 @@ static int xmp_write_buf(const char *gpath, struct fuse_bufvec *buf,
 	int rv;
 	(void)gpath;
 
-	filetype = ea_filetype_getValueForKey(DPR_DATA, fi);
-
 	DEBUGe('1') debug_msg
 	    (DPR_DATA,
 	     LOG_DIVIDER "%s() entry gpath=\"%s\" fd=\"%" PRIu64
 	     "\" offset=\"%lld\"\n", __func__, gpath,
 	     ea_shadowFile_getValueOrKey(DPR_DATA, fi), offset);
+
+	filetype = ea_filetype_getValueForKey(DPR_DATA, fi);
+
 	DEBUGe('1') debug_msg
 	    (DPR_DATA,
 	     LOG_DIVIDER "%s() filetype \"%d\"\n", __func__, filetype);
@@ -6226,7 +6290,7 @@ static int xmp_write_buf(const char *gpath, struct fuse_bufvec *buf,
 
 	rv = fuse_buf_copy(&dst, buf, FUSE_BUF_SPLICE_NONBLOCK);
 	if (rv == -1)
-		rv = dpr_error("xmp_write_buf pwrite");
+		dpr_error("xmp_write_buf pwrite");
 
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "  %s() completes, rv=\"%d\"\n\n", __func__, rv);
@@ -6238,15 +6302,23 @@ static int fsus_fallocate(const char *gpath, int mode,
 			  off_t offset, off_t length, struct fuse_file_info *fi)
 {
 	(void)gpath;
+	int rv;
 
-	DEBUGe('2') debug_msg(DPR_DATA, LOG_DIVIDER "%s()\n", __func__);
+	DEBUGe('1') debug_msg(DPR_DATA, LOG_DIVIDER "%s(gpath=\"%s\")\n",
+			      __func__, gpath);
+
 	/* forensicLogChangesComing(DPR_DATA, FALLOCATE_KEY, gpath); */
 
-	if (mode)
-		return -EOPNOTSUPP;
+	if (mode) {
+		rv = -EOPNOTSUPP;
+	} else {
+		rv = -posix_fallocate(ea_shadowFile_getValueOrKey(DPR_DATA, fi),
+				      offset, length);
+	}
 
-	return -posix_fallocate(ea_shadowFile_getValueOrKey(DPR_DATA, fi),
-				offset, length);
+	DEBUGe('1') debug_msg(DPR_DATA,
+			      "  %s() completes, rv=\"%d\"\n\n", __func__, rv);
+	return rv;
 }
 #endif				/* #ifdef HAVE_POSIX_FALLOCATE */
 
@@ -6255,26 +6327,37 @@ static int fsus_lock(const char *path, struct fuse_file_info *fi, int cmd,
 		     struct flock *lock)
 {
 	(void)path;
+	int rv;
 
-	DEBUGe('2') debug_msg(DPR_DATA, LOG_DIVIDER "%s()\n\n", __func__);
+	DEBUGe('1') debug_msg(DPR_DATA, LOG_DIVIDER "%s(gpath=\"%s\")\n",
+			      __func__, path);
 
-	return ulockmgr_op(ea_shadowFile_getValueOrKey(DPR_DATA, fi), cmd, lock,
-			   &fi->lock_owner, sizeof(fi->lock_owner));
+	rv = ulockmgr_op(ea_shadowFile_getValueOrKey(DPR_DATA, fi), cmd, lock,
+			 &fi->lock_owner, sizeof(fi->lock_owner));
+
+	DEBUGe('1') debug_msg(DPR_DATA,
+			      "  %s() completes, rv=\"%d\"\n\n", __func__, rv);
+	return rv;
 }
 #endif				/* #ifdef HAVE_LIBULOCKMGR */
 
 static int fsus_flock(const char *path, struct fuse_file_info *fi, int op)
 {
-	int res;
 	(void)path;
+	int res;
+	int rv;
 
-	DEBUGe('2') debug_msg(DPR_DATA, LOG_DIVIDER "%s()\n\n", __func__);
+	DEBUGe('1') debug_msg(DPR_DATA, LOG_DIVIDER "%s(gpath=\"%s\")\n",
+			      __func__, path);
 
 	res = flock(ea_shadowFile_getValueOrKey(DPR_DATA, fi), op);
+	rv = 0;
 	if (res == -1)
-		return -errno;
+		rv = -errno;
 
-	return 0;
+	DEBUGe('1') debug_msg(DPR_DATA,
+			      "  %s() completes, rv=\"%d\"\n\n", __func__, rv);
+	return rv;
 }
 
 /////////////////////////////////////
