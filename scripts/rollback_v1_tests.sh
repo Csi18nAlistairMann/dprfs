@@ -21,7 +21,7 @@ function internal_clean_function_name
 ###################################################################
 # set up for tests
 
-TESTPATH="/tmp/dprfs/rollback"
+TESTPATH="/tmp/dprfs/rollback-"`date +%s`
 TESTPATH_SZ=$(internal_unicode_string_len "$TESTPATH")
 ((TESTPATH_SZ+=2)) # pointer: ...rollbac[k]/file > ...rollback/[f]ile
 T_MINUS_CATCH_EVERYTHING=20160101000000000000
@@ -547,5 +547,14 @@ test_rollback_can_handle_unicode "$TESTPATH" "Hello▶world"; ((rv|=$?))
 test_rollback_can_handle_unicode_in_last "$TESTPATH" "Helloworld▶"; ((rv|=$?))
 test_rollback_can_handle_single_right_parenthesis "$TESTPATH" "Hello) world"; ((rv|=$?))
 test_rollback_can_handle_single_left_parenthesis "$TESTPATH" "Hello (world"; ((rv|=$?))
+
+if [ $rv -eq 0 ]
+then
+    printf "Tests end, nothing spotted going wrong\n"
+else
+    printf "1 or more tests failed\n"
+fi
+
+rm -rf "$TESTPATH"
 
 exit $rv
