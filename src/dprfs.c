@@ -16,6 +16,11 @@
  * gcc -fstack-check -Wall -std=gnu90 dprfs.c debug.c forensiclog.c -O2 -D_FILE_OFFSET_BITS=64 -DHAVE_CONFIG_H `pkg-config fuse3 --cflags` -g -O2 -lulockmgr -lcrypto -lbsd `pkg-config fuse3 --libs` -DHAVE_CONFIG_H   -o dprfs
  * fusermount -u /var/lib/samba/usershares/gdrive; ./dprfs /var/lib/samba/usershares/gdrive -o allow_root -o modules=subdir -o subdir=/var/lib/samba/usershares/rdrive -D 1
  * indent -linux *.h *.c
+ *
+ * Valgrind use
+ * Adapted from and using fusermount bodge at https://sourceforge.net/p/fuse/mailman/message/11633802/
+ * gcc -g -fstack-check -Wall -std=gnu90 dprfs.c debug.c forensiclog.c -O2 -D_FILE_OFFSET_BITS=64 -DHAVE_CONFIG_H `pkg-config fuse3 --cflags` -g -O2 -lulockmgr -lcrypto -lbsd `pkg-config fuse3 --libs` -DHAVE_CONFIG_H   -o dprfs
+ * cd ~/dprfs_v1/src/ && fusermount -u /var/lib/samba/usershares/gdrive; valgrind --log-file=/tmp/valgrin --tool=memcheck --trace-children=no --leak-check=full --show-reachable=yes --max-stackframe=3000000 -v ./dprfs /var/lib/samba/usershares/gdrive -o allow_root -o modules=subdir -o subdir=/var/lib/samba/usershares/rdrive -D 1
  */
 
 #define FUSE_USE_VERSION 30
@@ -261,6 +266,7 @@ static void ea_shadowFile_release(struct dpr_state *dpr_data)
 	for (a = 0; a < dpr_data->shadowFile_arr.array_max; a++)
 		if (dpr_data->shadowFile_arr.array[a] != NULL)
 			free(dpr_data->shadowFile_arr.array[a]);
+	free(dpr_data->shadowFile_arr.array);
 
 	fprintf(stderr, "ea_shadowFile_release completed\n");
 }
@@ -433,6 +439,7 @@ static void ea_filetype_release(struct dpr_state *dpr_data)
 	for (a = 0; a < dpr_data->filetype_arr.array_max; a++)
 		if (dpr_data->filetype_arr.array[a] != NULL)
 			free(dpr_data->filetype_arr.array[a]);
+	free(dpr_data->filetype_arr.array);
 
 	fprintf(stderr, "ea_filetype_release completed\n");
 }
@@ -616,6 +623,7 @@ static void ea_backup_gpath_release(struct dpr_state *dpr_data)
 	for (a = 0; a < dpr_data->backup_gpath_arr.array_max; a++)
 		if (dpr_data->backup_gpath_arr.array[a] != NULL)
 			free(dpr_data->backup_gpath_arr.array[a]);
+	free(dpr_data->backup_gpath_arr.array);
 
 	fprintf(stderr, "ea_backup_gpath_release completed\n");
 }
@@ -752,6 +760,7 @@ static void ea_flarrs_release(struct dpr_state *dpr_data)
 	for (a = 0; a < dpr_data->fl_arr.array_max; a++)
 		if (dpr_data->fl_arr.array[a] != NULL)
 			free(dpr_data->fl_arr.array[a]);
+	free(dpr_data->fl_arr.array);
 
 	fprintf(stderr, "ea_flarrs_release completed\n");
 }
@@ -1146,6 +1155,7 @@ static void ea_str_release(struct dpr_state *dpr_data)
 	for (a = 0; a < dpr_data->pr_arr.array_max; a++)
 		if (dpr_data->pr_arr.array[a] != NULL)
 			free(dpr_data->pr_arr.array[a]);
+	free(dpr_data->pr_arr.array);
 
 	fprintf(stderr, "ea_str_release completed\n");
 }
@@ -3106,9 +3116,6 @@ dpr_cleanedXlateWholePath(struct dpr_xlate_data *dxd,
 
 		} else {
 			// there IS :Dmetadata - observe what it says
-			struct metadata_array md_arr_d = MD_ARR_INIT;
-			md_arr_d.not_via.next = NULL;
-			mstrreset(&md_arr_d.others);
 			md_getIntoStructure(&md_arr_d, dpr_data, buffer);
 			md_unload(buffer);
 
@@ -3224,19 +3231,11 @@ dpr_cleanedXlateWholePath(struct dpr_xlate_data *dxd,
 
  reset_free_and_return:
 	resetDxd(dxd);
-	mstrfree(&md_arr_d.others);
-	md_free(&md_arr_d.not_via);
-	mstrfree(&md_arr_f.others);
-	md_free(&md_arr_f.not_via);
-	return;
+	goto free_and_return;
 
  delete_free_and_return:
 	dxd->deleted = true;
-	mstrfree(&md_arr_d.others);
-	md_free(&md_arr_d.not_via);
-	mstrfree(&md_arr_f.others);
-	md_free(&md_arr_f.not_via);
-	return;
+	goto free_and_return;
 
  free_and_return:
 	mstrfree(&md_arr_d.others);
@@ -6830,7 +6829,7 @@ int main(int argc, char *argv[])
 
  options_release:
 	free(options.rdrive);
-	free(dpr_data);
 	DEBUGi('0') debug_msg(dpr_data, "Clean shut down of DPRFS\n");
+	free(dpr_data);
 	return rv;
 }
