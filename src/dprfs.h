@@ -77,6 +77,10 @@ static void ea_backup_gpath_addElement(struct dpr_state *dpr_data,
 				       const char *backup_gpath);
 static char *ea_backup_gpath_getValueForKey(struct dpr_state *dpr_data,
 					    struct fuse_file_info *fi);
+static void ea_backup_gpath_removeElementByIndex(struct dpr_state *dpr_data,
+						 int index);
+static void ea_backup_gpath_removeElementByValue(struct dpr_state *dpr_data,
+						 const char *paf);
 
 /* -- Forensic log notes for getting all onto one line */
 static void ea_flarrs_initialise(struct dpr_state *dpr_data);

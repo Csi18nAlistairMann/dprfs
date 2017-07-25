@@ -540,7 +540,7 @@ ea_filetype_removeElementByKey(struct dpr_state *dpr_data,
 		DEBUGe('2') debug_msg(dpr_data,
 				      " %s(): indx=\"%d\" with max=\"%d\"\n",
 				      __func__, a,
-				      dpr_data->backup_gpath_arr.array_max);
+				      dpr_data->filetype_arr.array_max);
 
 		if (dpr_data->filetype_arr.array[a] == NULL)
 			continue;
@@ -620,9 +620,11 @@ static void ea_backup_gpath_release(struct dpr_state *dpr_data)
 	long a;
 	fprintf(stderr, "ea_backup_gpath_release called\n");
 
-	for (a = 0; a < dpr_data->backup_gpath_arr.array_max; a++)
-		if (dpr_data->backup_gpath_arr.array[a] != NULL)
+	for (a = 0; a < dpr_data->backup_gpath_arr.array_max; a++) {
+		if (dpr_data->backup_gpath_arr.array[a] != NULL) {
 			free(dpr_data->backup_gpath_arr.array[a]);
+		}
+	}
 	free(dpr_data->backup_gpath_arr.array);
 
 	fprintf(stderr, "ea_backup_gpath_release completed\n");
@@ -708,6 +710,41 @@ static char *ea_backup_gpath_getValueForKey(struct dpr_state *dpr_data,
 	DEBUGe('2') debug_msg
 	    (dpr_data, "[WARNING] %s() can't find path for reload\n", __func__);
 	return NULL;
+}
+
+static void
+ea_backup_gpath_removeElementByIndex(struct dpr_state *dpr_data, int index)
+{
+	DEBUGe('2') debug_msg
+	    (dpr_data, "%s() called to remove \"%d\"\n", __func__, index);
+
+	free(dpr_data->backup_gpath_arr.array[index]);
+	dpr_data->backup_gpath_arr.array[index] = NULL;
+
+	DEBUGe('2') debug_msg(dpr_data,
+			      "%s() removed \"%d\"\n", __func__, index);
+}
+
+static void
+ea_backup_gpath_removeElementByValue(struct dpr_state *dpr_data,
+				     const char *gpath)
+{
+	int a;
+	DEBUGe('2') debug_msg(dpr_data,
+			      "%s() asked to remove \"%s\"\n", __func__, gpath);
+
+	a = 0;
+	do {
+		if (dpr_data->backup_gpath_arr.array[a] == NULL)
+			continue;
+
+		if (strcmp
+		    (dpr_data->backup_gpath_arr.array[a]->backup_gpath,
+		     gpath) != 0)
+			continue;
+
+		ea_backup_gpath_removeElementByIndex(dpr_data, a);
+	} while (++a < dpr_data->backup_gpath_arr.array_max);
 }
 
 /*-------------------------------------------------------
@@ -1156,6 +1193,7 @@ static void ea_str_release(struct dpr_state *dpr_data)
 		if (dpr_data->pr_arr.array[a] != NULL)
 			free(dpr_data->pr_arr.array[a]);
 	free(dpr_data->pr_arr.array);
+	dpr_data->pr_arr.array = NULL;
 
 	fprintf(stderr, "ea_str_release completed\n");
 }
@@ -4745,19 +4783,23 @@ fsus_write(const char *gpath, const char *buf, size_t size, off_t offset,
  */
 static int fsus_flush(const char *gpath, struct fuse_file_info *fi)
 {
-	int res;
+	char *gpath_ptr;
 	(void)gpath;
+	int res;
 
 	DEBUGe('1') debug_msg(DPR_DATA, LOG_DIVIDER "%s(gpath=\"%s\")\n",
 			      __func__, gpath);
 
-	if (gpath == NULL)
+	if (gpath == NULL) {
 		// no need to get fpath on this one, since I work from fi->fh not the gpath
-		forensicLogChangesComing(DPR_DATA, FLUSH_KEY,
-					 ea_backup_gpath_getValueForKey
-					 (DPR_DATA, fi));
-	else
+		gpath_ptr = ea_backup_gpath_getValueForKey(DPR_DATA, fi);
+		forensicLogChangesComing(DPR_DATA, FLUSH_KEY, gpath_ptr);
+		ea_backup_gpath_removeElementByValue(DPR_DATA, gpath_ptr);
+
+	} else {
 		forensicLogChangesComing(DPR_DATA, FLUSH_KEY, gpath);
+		ea_backup_gpath_removeElementByValue(DPR_DATA, gpath);
+	}
 
 	/* This is called from every close on an open file, so call the
 	   close on the underlying filesystem.  But since flush may be
@@ -4772,7 +4814,6 @@ static int fsus_flush(const char *gpath, struct fuse_file_info *fi)
 			      LOG_DIVIDER "%s(gpath=\"%s\", fd=\"%"
 			      PRIu64 "\")\n\n", __func__, gpath,
 			      ea_shadowFile_getValueOrKey(DPR_DATA, fi));
-
 	return 0;
 }
 
@@ -4823,6 +4864,7 @@ static int fsus_release(const char *gpath, struct fuse_file_info *fi)
 	forensicLogChangesApplied(DPR_DATA, gpath);
 	ea_flarrs_removeElementByValue(DPR_DATA, gpath);
 	ea_filetype_removeElementByKey(DPR_DATA, fd);
+	free((struct xmp_dirp *)fd);
 	ea_filetype_removeElementByKey(DPR_DATA, shadowFile_fd);
 	ea_str_removeElementByValue(DPR_DATA, gpath);
 
@@ -6773,6 +6815,7 @@ int main(int argc, char *argv[])
 	ea_shadowFile_initialise(dpr_data);
 	ea_filetype_initialise(dpr_data);
 	ea_backup_gpath_initialise(dpr_data);
+
 	DEBUGi('0') debug_msg(dpr_data, "Starting DPRFS\n");
 
 #ifdef RS_DELETE_SUPPORT
@@ -6814,6 +6857,7 @@ int main(int argc, char *argv[])
 	fprintf(stderr, "%s() returning\n", __func__);
 #endif				/* #if RUN_AS_UNIT_TESTS #else */
 
+ options_release:
 	ea_backup_gpath_release(dpr_data);
 	ea_filetype_release(dpr_data);
 	ea_shadowFile_release(dpr_data);
@@ -6827,9 +6871,10 @@ int main(int argc, char *argv[])
 	rs_free(dpr_data->delstats_p);
 #endif
 
- options_release:
 	free(options.rdrive);
 	DEBUGi('0') debug_msg(dpr_data, "Clean shut down of DPRFS\n");
+	fclose(dpr_data->debugfile);
+	fclose(dpr_data->forensiclogfile);
 	free(dpr_data);
 	return rv;
 }
