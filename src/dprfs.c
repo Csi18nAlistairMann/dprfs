@@ -13,13 +13,13 @@
 */
 
 /**
- * gcc -fstack-check -Wall -std=gnu90 dprfs.c debug.c forensiclog.c -O2 -D_FILE_OFFSET_BITS=64 -DHAVE_CONFIG_H `pkg-config fuse3 --cflags` -g -O2 -lulockmgr -lcrypto -lbsd `pkg-config fuse3 --libs` -DHAVE_CONFIG_H   -o dprfs
+ * gcc -fstack-check -Wall -std=gnu90 dprfs.c debug.c forensiclog.c -O2 -D_FILE_OFFSET_BITS=64 -DHAVE_CONFIG_H `pkg-config fuse3 --cflags` -g -O2 -lcrypto -lbsd `pkg-config fuse3 --libs` -DHAVE_CONFIG_H   -o dprfs
  * fusermount -u /var/lib/samba/usershares/gdrive; ./dprfs /var/lib/samba/usershares/gdrive -o allow_root -o modules=subdir -o subdir=/var/lib/samba/usershares/rdrive -D 1
  * indent -linux *.h *.c
  *
  * Valgrind use
  * Adapted from and using fusermount bodge at https://sourceforge.net/p/fuse/mailman/message/11633802/
- * gcc -g -fstack-check -Wall -std=gnu90 dprfs.c debug.c forensiclog.c -O2 -D_FILE_OFFSET_BITS=64 -DHAVE_CONFIG_H `pkg-config fuse3 --cflags` -g -O2 -lulockmgr -lcrypto -lbsd `pkg-config fuse3 --libs` -DHAVE_CONFIG_H   -o dprfs
+ * gcc -g -fstack-check -Wall -std=gnu90 dprfs.c debug.c forensiclog.c -O2 -D_FILE_OFFSET_BITS=64 -DHAVE_CONFIG_H `pkg-config fuse3 --cflags` -g -O2 -lcrypto -lbsd `pkg-config fuse3 --libs` -DHAVE_CONFIG_H   -o dprfs
  * cd ~/dprfs_v1/src/ && fusermount -u /var/lib/samba/usershares/gdrive; valgrind --log-file=/tmp/valgrin --tool=memcheck --trace-children=no --leak-check=full --show-reachable=yes --max-stackframe=3000000 -v ./dprfs /var/lib/samba/usershares/gdrive -o allow_root -o modules=subdir -o subdir=/var/lib/samba/usershares/rdrive -D 1
  */
 
@@ -44,9 +44,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef HAVE_LIBULOCKMGR
-#include <ulockmgr.h>
-#endif				/* #ifdef HAVE_LIBULOCKMGR */
 #include <unistd.h>
 #include <bsd/stdlib.h>
 #include <openssl/sha.h>
@@ -6374,25 +6371,6 @@ static int fsus_fallocate(const char *gpath, int mode,
 }
 #endif				/* #ifdef HAVE_POSIX_FALLOCATE */
 
-#ifdef HAVE_LIBULOCKMGR
-static int fsus_lock(const char *path, struct fuse_file_info *fi, int cmd,
-		     struct flock *lock)
-{
-	(void)path;
-	int rv;
-
-	DEBUGe('1') debug_msg(DPR_DATA, LOG_DIVIDER "%s(gpath=\"%s\")\n",
-			      __func__, path);
-
-	rv = ulockmgr_op(ea_shadowFile_getValueOrKey(DPR_DATA, fi), cmd, lock,
-			 &fi->lock_owner, sizeof(fi->lock_owner));
-
-	DEBUGe('1') debug_msg(DPR_DATA,
-			      "  %s() completes, rv=\"%d\"\n\n", __func__, rv);
-	return rv;
-}
-#endif				/* #ifdef HAVE_LIBULOCKMGR */
-
 static int fsus_flock(const char *path, struct fuse_file_info *fi, int op)
 {
 	(void)path;
@@ -6504,9 +6482,6 @@ static struct fuse_operations xmp_oper = {
 #ifdef HAVE_POSIX_FALLOCATE
 	.fallocate = fsus_fallocate,	//?
 #endif				/* #ifdef HAVE_POSIX_FALLOCATE */
-#ifdef HAVE_LIBULOCKMGR
-	.lock = fsus_lock,	//?
-#endif				/* #ifdef HAVE_LIBULOCKMGR */
 	.flock = fsus_flock,	//?
 	.read_buf = xmp_read_buf,	//?
 	.write_buf = xmp_write_buf,	//?
