@@ -23,7 +23,7 @@
  * cd ~/dprfs_v1/src/ && fusermount -u /var/lib/samba/usershares/gdrive; valgrind --log-file=/tmp/valgrin --tool=memcheck --trace-children=no --leak-check=full --show-reachable=yes --max-stackframe=3000000 -v ./dprfs /var/lib/samba/usershares/gdrive -o allow_root -o modules=subdir -o subdir=/var/lib/samba/usershares/rdrive -D 1
  */
 
-#define FUSE_USE_VERSION 30
+#define FUSE_USE_VERSION 31
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -6031,109 +6031,6 @@ fsus_fsync(const char *gpath, int datasync, struct fuse_file_info *fi)
 	return rv;
 }
 
-/*
- * Change the size of an open file
- *
- * This method is called instead of the truncate() method if the
- * truncation was invoked from an ftruncate() system call.
- *
- * If this method is not implemented or under Linux kernel
- * versions earlier than 2.6.15, the truncate() method will be
- * called instead.
- *
- * Introduced in version 2.5
- */
-static int
-fsus_ftruncate(const char *gpath, off_t offset, struct fuse_file_info *fi)
-{
-	unsigned int filetype;
-	int oldflags;
-	int rv;
-
-	DEBUGe('1') debug_msg(DPR_DATA,
-			      LOG_DIVIDER "%s(gpath=\"%s\")\n",
-			      __func__, gpath);
-
-	filetype = ea_filetype_getValueForKey(DPR_DATA, fi);
-	DEBUGe('1') debug_msg
-	    (DPR_DATA, "%s() filetype \"%d\"\n", __func__, filetype);
-
-	// might need to reload?
-	if (filetype == DPRFS_FILETYPE_LL
-	    && ea_str_getValueForKey(DPR_DATA, gpath) != NULL) {
-		// Mint/dolphin will already have truncated this file, Windows
-		// won't.
-		// Do what we're told, ie, we won't make value judgements
-		// on whether to keep any of successive truncates: this costs
-		// us one inode each time it happens
-
-		// conduct the reload
-		DEBUGe('2') debug_msg
-		    (DPR_DATA, " reload required for \"%s\")\n", gpath);
-
-		fsus_recreate(gpath);
-		oldflags = fi->flags;
-		fi->flags = O_LARGEFILE | O_CREAT | O_RDWR;
-		fsus_open_shadow(gpath, fi);
-		fi->flags = oldflags;
-
-		// have reopened a new file so no more need to reload at
-		// next write
-		ea_str_removeElementByValue(DPR_DATA, gpath);
-	}
-	forensicLogChangesComing(DPR_DATA, TRUNCATE_KEY, gpath);
-
-	DEBUGe('3') debug_msg
-	    (DPR_DATA, "%s about to ftruncate fd=\"%d\" to len=\"%d\"\n",
-	     __func__, ea_shadowFile_getValueOrKey(DPR_DATA, fi), offset);
-
-	rv = ftruncate(ea_shadowFile_getValueOrKey(DPR_DATA, fi), offset);
-	if (rv == -1)
-		dpr_error("fsus_ftruncate ftruncate");
-
-	DEBUGe('1') debug_msg(DPR_DATA,
-			      "  %s() completes, rv=\"%d\"\n\n", __func__, rv);
-	return rv;
-}
-
-/*
- * Get attributes from an open file
- *
- * This method is called instead of the getattr() method if the
- * file information is available.
- *
- * Currently this is only called after the create() method if that
- * is implemented (see above).  Later it may be called for
- * invocations of fstat() too.
- *
- * Introduced in version 2.5
- */
-static int
-fsus_fgetattr(const char *gpath, struct stat *statbuf,
-	      struct fuse_file_info *fi)
-{
-	int rv;
-
-	DEBUGe('1') debug_msg(DPR_DATA, LOG_DIVIDER
-			      "%s(will act on fi gpath=\"%s\")\n",
-			      __func__, gpath);
-
-	// On FreeBSD, trying to do anything with the mountpoint ends up
-	// opening it, and then using the FD for an fgetattr.  So in the
-	// special case of a gpath of "/", I need to do a getattr on the
-	// underlying root directory instead of doing the fgetattr().
-	if (!strcmp(gpath, "/"))
-		rv = fsus_getattr(gpath, statbuf);
-	else
-		rv = fstat(ea_shadowFile_getValueOrKey(DPR_DATA, fi), statbuf);
-
-	if (rv == -1)
-		dpr_error("fsus_fgetattr fstat");
-	DEBUGe('1') debug_msg(DPR_DATA,
-			      "  %s completes, rv=\"%d\"\n\n", __func__, rv);
-	return rv;
-}
-
 /////////////////////////////////////
 // misc
 
@@ -6446,7 +6343,6 @@ static struct fuse_operations xmp_oper = {
 	.flush = fsus_flush,
 	.fsync = fsus_fsync,
 	.access = fsus_access,
-	.fgetattr = fsus_fgetattr,
 	.mknod = fsus_mknod,
 
 	/* links */
@@ -6468,7 +6364,6 @@ static struct fuse_operations xmp_oper = {
 
 	/* files */
 	.truncate = fsus_truncate,
-	.ftruncate = fsus_ftruncate,
 	.create = fsus_create,
 	.open = fsus_open,
 	.read = fsus_read,

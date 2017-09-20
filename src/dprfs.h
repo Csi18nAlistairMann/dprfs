@@ -211,8 +211,6 @@ static int fsus_flush(const char *gpath, struct fuse_file_info *fi);
 static int fsus_fsync(const char *gpath, int datasync,
 		      struct fuse_file_info *fi);
 static int fsus_access(const char *gpath, int mask);
-static int fsus_fgetattr(const char *gpath, struct stat *statbuf,
-			 struct fuse_file_info *fi);
 static int fsus_mknod(const char *gpath, mode_t mode, dev_t dev);
 #ifdef HAVE_SETXATTR
 static int fsus_setxattr(const char *gpath, const char *name, const char *value,
@@ -253,8 +251,6 @@ static int fsus_create_core_ds(struct dpr_xlate_data *dxd, mode_t mode,
 			       struct fuse_file_info *fi);
 static int fsus_create_core_ll(struct dpr_xlate_data *dxd, mode_t mode,
 			       struct fuse_file_info *fi);
-static int fsus_ftruncate(const char *gpath, off_t offset,
-			  struct fuse_file_info *fi);
 static int fsus_mkdir(const char *gpath, mode_t mode);
 static int fsus_mkdir_with_metadata(struct dpr_state *dpr_data,
 				    const char *gpath, mode_t mode,
