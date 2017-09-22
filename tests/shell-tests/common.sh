@@ -48,6 +48,7 @@ function postTestWork()
 
 function checkAndRemove()
 {
+    # all rdrive files are actually directories
     if [ -d "$1" ]
     then
 	rm -rf "$1"
