@@ -187,7 +187,6 @@ static int getLinkedlistRevtsLinkedlistFile(char *paf,
 
 /* Fuse entry points, plus immediate children */
 static void *fsus_init(struct fuse_conn_info *conn);
-static void fsus_destroy(void *userdata);
 static int fsus_link(const char *gpath, const char *newpath);
 static int fsus_symlink(const char *gpath, const char *link);
 static int fsus_readlink(const char *gpath, char *link, size_t size);

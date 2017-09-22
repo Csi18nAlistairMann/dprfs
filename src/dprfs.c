@@ -6312,17 +6312,6 @@ static void *fsus_init(struct fuse_conn_info *conn)
 	return DPR_DATA;
 }
 
-/*
- * Clean up filesystem
- *
- * Called on filesystem exit.
- *
- * Introduced in version 2.3
- */
-static void fsus_destroy(void *userdata)
-{
-}
-
 static struct fuse_operations xmp_oper = {
 	/* directories */
 	.mkdir = fsus_mkdir,
@@ -6354,7 +6343,6 @@ static struct fuse_operations xmp_oper = {
 	/* dprfs only */
 	/* housekeeping */
 	.init = fsus_init,
-	.destroy = fsus_destroy,
 #ifdef HAVE_SETXATTR
 	.setxattr = fsus_setxattr,
 	.getxattr = fsus_getxattr,
