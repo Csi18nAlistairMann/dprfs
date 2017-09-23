@@ -2950,9 +2950,10 @@ dpr_cleanedXlateWholePath(struct dpr_xlate_data *dxd,
 			if (strcmp(p, ".laccdb") == 0)
 				dxd->is_part_file = true;
 		}
-		if (op_len == 16) {
+		if (op_len >= 15) {
 			// ^/\.TemporaryItems/.* is from OSX
-			if (strcmp(original_paf, "/.TemporaryItems") == 0)
+			char *p = original_paf + strlen(original_paf) - 15;
+			if (strcmp(p, ".TemporaryItems") == 0)
 				dxd->is_part_file = true;
 		}
 		if (op_len >= 17) {
