@@ -4427,7 +4427,8 @@ static int fsus_recreate(const char *gpath)
 	return fsus_truncate_core(gpath, newsize, reloading);
 }
 
-static int fsus_truncate(const char *gpath, off_t newsize)
+static int fsus_truncate(const char *gpath, off_t newsize,
+                        struct fuse_file_info *fi)
 {
 	bool reloading = false;
 	int rv;
@@ -5725,7 +5726,8 @@ static int fsus_link(const char *gpath, const char *newpath)
  * to add a utility to ensure that the Gdrive lstat matches the
  * Rdrive head
  */
-static int fsus_getattr(const char *gpath, struct stat *statbuf)
+static int fsus_getattr(const char *gpath, struct stat *statbuf,
+                        struct fuse_file_info *fi)
 {
 	const char *gpath2 = gpath + DPR_DATA->rootdir_len;
 	struct dpr_xlate_data dxd = DXD_INIT;
@@ -5769,7 +5771,8 @@ static int fsus_getattr(const char *gpath, struct stat *statbuf)
 }
 
 /* Change the permission bits of a file */
-static int fsus_chmod(const char *gpath, mode_t mode)
+static int fsus_chmod(const char *gpath, mode_t mode,
+                        struct fuse_file_info *fi)
 {
 	struct dpr_xlate_data dxd = DXD_INIT;
 	int rv;
@@ -5830,7 +5833,8 @@ static int fsus_chmod_ll(struct dpr_xlate_data *dxd, mode_t mode)
 }
 
 /* Change the owner and group of a file */
-static int fsus_chown(const char *gpath, uid_t uid, gid_t gid)
+static int fsus_chown(const char *gpath, uid_t uid, gid_t gid,
+                        struct fuse_file_info *fi)
 {
 	struct dpr_xlate_data dxd = DXD_INIT;
 	char ll_name[PATH_MAX] = "";
@@ -6132,7 +6136,8 @@ static int fsus_mknod(const char *gpath, mode_t mode, dev_t dev)
 }
 
 #ifdef HAVE_UTIMENSAT
-static int fsus_utimens(const char *gpath, const struct timespec ts[2])
+static int fsus_utimens(const char *gpath, const struct timespec ts[2],
+                        struct fuse_file_info *fi)
 {
 	struct dpr_xlate_data dxd = DXD_INIT;
 	int rv;
@@ -6335,28 +6340,6 @@ static int fsus_flock(const char *path, struct fuse_file_info *fi, int op)
 /////////////////////////////////////
 // filesystem
 
-/*
- * Initialize filesystem
- *
- * The return value will passed in the private_data field of
- * fsus_context to all file operations and as a parameter to the
- * destroy() method.
- *
- * Introduced in version 2.3
- * Changed in version 2.6
- */
-// Undocumented but extraordinarily useful fact:  the fsus_context is
-// set up before this function is called, and
-// fsus_get_context()->private_data returns the user_data passed to
-// fsus_main().  Really seems like either it should be a third
-// parameter coming in here, or else the fact should be documented
-// (and this might as well return void, as it did in older versions of
-// FUSE).
-static void *fsus_init(struct fuse_conn_info *conn)
-{
-	return DPR_DATA;
-}
-
 static struct fuse_operations xmp_oper = {
 	/* directories */
 	.mkdir = fsus_mkdir,
@@ -6385,9 +6368,8 @@ static struct fuse_operations xmp_oper = {
 	.unlink = fsus_unlink,
 	.readlink = fsus_readlink,
 
-	/* dprfs only */
 	/* housekeeping */
-	.init = fsus_init,
+	/* .init = xmp_init, // dprfs happy to use FUSE's own .init*/
 #ifdef HAVE_SETXATTR
 	.setxattr = fsus_setxattr,
 	.getxattr = fsus_getxattr,

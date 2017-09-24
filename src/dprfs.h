@@ -186,20 +186,23 @@ static int getLinkedlistRevtsLinkedlistFile(char *paf,
 					    struct dpr_xlate_data dxd);
 
 /* Fuse entry points, plus immediate children */
-static void *fsus_init(struct fuse_conn_info *conn);
 static int fsus_link(const char *gpath, const char *newpath);
 static int fsus_symlink(const char *gpath, const char *link);
 static int fsus_readlink(const char *gpath, char *link, size_t size);
 static int fsus_unlink(const char *gpath);
 static int fsus_unlink_ds(struct dpr_xlate_data *dxd);
 static int fsus_unlink_ll(const char *gpath, struct dpr_xlate_data *dxd);
-static int fsus_getattr(const char *gpath, struct stat *statbuf);
-static int fsus_chmod(const char *gpath, mode_t mode);
+static int fsus_getattr(const char *gpath, struct stat *statbuf,
+                        struct fuse_file_info *fi);
+static int fsus_chmod(const char *gpath, mode_t mode,
+                        struct fuse_file_info *fi);
 static int fsus_chmod_ds(struct dpr_xlate_data *dxd, mode_t mode);
 static int fsus_chmod_ll(struct dpr_xlate_data *dxd, mode_t mode);
-static int fsus_chown(const char *gpath, uid_t uid, gid_t gid);
+static int fsus_chown(const char *gpath, uid_t uid, gid_t gid,
+                        struct fuse_file_info *fi);
 #if HAVE_UTIMENSAT
-static int fsus_utimens(const char *gpath, const struct timespec ts[2]);
+static int fsus_utimens(const char *gpath, const struct timespec ts[2],
+                        struct fuse_file_info *fi);
 static int fsus_utimens_ds(struct dpr_xlate_data *dxd,
 			   const struct timespec ts[2]);
 static int fsus_utimens_ll(struct dpr_xlate_data *dxd,
@@ -220,7 +223,8 @@ static int fsus_listxattr(const char *gpath, char *list, size_t size);
 static int fsus_removexattr(const char *gpath, const char *name);
 #endif
 static int fsus_recreate(const char *gpath);
-static int fsus_truncate(const char *gpath, off_t newsize);
+static int fsus_truncate(const char *gpath, off_t newsize,
+                        struct fuse_file_info *fi);
 static int fsus_truncate_core(const char *gpath, off_t newsize, bool reloading);
 static int fsus_truncate_core_ds(struct dpr_xlate_data *dxd, off_t newsize);
 static int fsus_truncate_core_ll(const char *gpath,
