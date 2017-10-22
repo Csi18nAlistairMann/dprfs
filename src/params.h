@@ -14,6 +14,9 @@
 // 0 = compile for service; 1 = compile for unit tests
 #define RUN_AS_UNIT_TESTS 0
 
+// 0 = compile to use rdrive only; 1 = compile for tdrive too
+#define USE_TDRIVE 1
+
 /* Add rolling_stats by default, 8 second periods, max 8(+8) history */
 #define RS_DELETE_FILE "/dev/shm/dprfs-rolling-stats-delete"
 #define RS_DELETE_SUPPORT 1
@@ -75,6 +78,7 @@
 #define LATEST_FILENAME ":latest"
 #define DMETADATA_FILENAME ":Dmetadata"
 #define FMETADATA_FILENAME ":Fmetadata"
+/* #define RESERVED_FILENAME ":Reserved" */
 #define TIMESTAMP_SIZE 21	// 20160105190333846925\0
 // XWP_DEPTH_MAX how many times dpr_xlateWholePath can recurse. In normal
 // operations this limits how many subdirectories there can be, how many
@@ -276,6 +280,7 @@ struct dpr_xlate_data {
 	bool is_part_file;
 	// payload doesn't exist in this link, use this location to find in previous
 	char payload[PATH_MAX];
+	char payload_root[PATH_MAX];
 	char originaldir[PATH_MAX];
 	// The relpath is the left-hand side of the user's request up to the
 	// final path separator. If there isn't one, the relpath is set to

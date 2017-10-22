@@ -208,6 +208,15 @@ static int fsus_utimens_ds(struct dpr_xlate_data *dxd,
 static int fsus_utimens_ll(struct dpr_xlate_data *dxd,
 			   const struct timespec ts[2]);
 #endif
+
+static int xmp_read_buf(const char *gpath, struct fuse_bufvec **bufp,
+			size_t size, off_t offset, struct fuse_file_info *fi);
+static int xmp_write_buf(const char *gpath, struct fuse_bufvec *buf,
+			 off_t offset, struct fuse_file_info *fi);
+static int fsus_fallocate(const char *gpath, int mode,
+			  off_t offset, off_t length, struct fuse_file_info *fi);
+static int fsus_flock(const char *path, struct fuse_file_info *fi, int op);
+
 static int fsus_statfs(const char *gpath, struct statvfs *statv);
 static int fsus_flush(const char *gpath, struct fuse_file_info *fi);
 static int fsus_fsync(const char *gpath, int datasync,
