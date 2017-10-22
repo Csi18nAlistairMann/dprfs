@@ -49,6 +49,19 @@ function postTestWork()
 function checkAndRemove()
 {
     # all rdrive files are actually directories
+    if [ "$1" == "$RDRIVE" -o "$1" == "$TDRIVE" ]
+    then
+	if [ "$1" == "$RDRIVE" ]
+	then
+	    echo "Attempt to rm -rf RDRIVE, abort abort abort!"
+	elif [ "$1" == "$TDRIVE" ]
+	then
+	    echo "Attempt to rm -rf TDRIVE, abort abort abort!"
+	fi
+	echo "Likely your clearFS() routine no good"
+	exit -1
+    fi
+
     if [ -d "$1" ]
     then
 	rm -rf "$1"
@@ -99,14 +112,15 @@ function testStringEqual()
 
 function testContents()
 {
+    ((NUMTESTS++))
     TEXT1=`cat $1`
-    if [ "$TEXT1" == "$2" ]
+    if [ "$TEXT1" != "$2" ]
     then
-	return 0
-    else
+	((FAILEDTESTS++))
 	printf "Expected '$2', got '$TEXT1'\n"
 	# echo "$2" | base64
 	# echo "$TEXT1" | base64
 	return 1
     fi
+    return 0
 }
