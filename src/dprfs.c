@@ -1793,11 +1793,11 @@ static void getLinkedlistDMetadataLnk(char *paf, struct dpr_xlate_data dxd)
 
 /* static void getLinkedlistReservedFile(char *paf, struct dpr_xlate_data dxd) */
 /* { */
-/* 	strcpy(paf, dxd.rootdir); */
-/* 	getPafForRelPath(paf, dxd); */
-/* 	getPafForFinalPathWithOsxBodge(paf, dxd); */
-/* 	strcat(paf, "/"); */
-/* 	strcat(paf, RESERVED_FILENAME); */
+/*	strcpy(paf, dxd.rootdir); */
+/*	getPafForRelPath(paf, dxd); */
+/*	getPafForFinalPathWithOsxBodge(paf, dxd); */
+/*	strcat(paf, "/"); */
+/*	strcat(paf, RESERVED_FILENAME); */
 /* } */
 
 static void getDMetadataTSFile(char *paf, struct dpr_xlate_data dxd)
@@ -4531,11 +4531,11 @@ static int fsus_rename_core(const char *fulloldpath,
  * calls fsus_write above to dump data into it. Strictly
  * speaking that shouldn't be allowed
  */
-static int fsus_recreate(const char *gpath)
+static int fsus_recreate(const char *gpath, struct fuse_file_info *fi)
 {
 	bool reloading = true;
 	off_t newsize = -1;
-	return fsus_truncate_core(gpath, newsize, reloading);
+	return fsus_truncate_core(gpath, newsize, reloading, fi);
 }
 
 static int fsus_truncate(const char *gpath, off_t newsize,
@@ -4549,7 +4549,7 @@ static int fsus_truncate(const char *gpath, off_t newsize,
 			      "%s(gpath=\"%s\" size=\"%d\" fh=\"%d\"\n",
 			      __func__, gpath, (long)newsize, fi->fh);
 
-	rv = fsus_truncate_core(gpath, newsize, reloading);
+	rv = fsus_truncate_core(gpath, newsize, reloading, fi);
 
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "%s() completes, rv=\"%d\"\n\n", __func__, rv);
@@ -4557,7 +4557,8 @@ static int fsus_truncate(const char *gpath, off_t newsize,
 	return rv;
 }
 
-static int fsus_truncate_core(const char *gpath, off_t newsize, bool reloading)
+static int fsus_truncate_core(const char *gpath, off_t newsize, bool reloading,
+			      struct fuse_file_info *fi)
 {
 	struct dpr_xlate_data dxdfrom = DXD_INIT;
 	int rv = 0;
@@ -4567,21 +4568,30 @@ static int fsus_truncate_core(const char *gpath, off_t newsize, bool reloading)
 			      "%s(gpath=\"%s\" size=\"%d\"\n", __func__,
 			      gpath, (long)newsize);
 
-	if (reloading == false)
+	if (reloading == false) {
 		forensicLogChangesComing(DPR_DATA, TRUNCATE_KEY, gpath);
-	else
+
+	} else {
 		/* Copying old to new would change modified time */
 		forensicLogChangesComing(DPR_DATA, RECREATE_KEY, gpath);
+	}
 
 	dpr_xlateWholePath(&dxdfrom, DPR_DATA, gpath, false,
 			   XWP_DEPTH_MAX, NULL, OBSERVE_ORIGINAL_DIR);
 
 	rv = 0;
 	if (dxdfrom.dprfs_filetype == DPRFS_FILETYPE_LL) {
-		rv = fsus_truncate_core_ll(gpath, &dxdfrom, newsize);
+		if (fi->fh == 0) {
+			rv = fsus_truncate_core_ll(gpath, &dxdfrom, newsize,
+						   fi);
+
+		} else {
+			rv = fsus_truncate_core_ll_fh(gpath, &dxdfrom, newsize,
+						      fi);
+		}
 
 	} else if (dxdfrom.dprfs_filetype == DPRFS_FILETYPE_DS) {
-		rv = fsus_truncate_core_ds(&dxdfrom, newsize);
+		rv = fsus_truncate_core_ds(&dxdfrom, newsize, fi);
 
 	} else {
 		rv = -1;
@@ -4597,7 +4607,8 @@ static int fsus_truncate_core(const char *gpath, off_t newsize, bool reloading)
 }
 
 static int fsus_truncate_core_ll(const char *gpath,
-				 struct dpr_xlate_data *dxdfrom, off_t newsize)
+				 struct dpr_xlate_data *dxdfrom, off_t newsize,
+				 struct fuse_file_info *fi)
 {
 	struct metadata_array md_arr = MD_ARR_INIT;
 	struct dpr_xlate_data dxdto = DXD_INIT;
@@ -4685,143 +4696,56 @@ static int fsus_truncate_core_ll(const char *gpath,
 	return rv;
 }
 
-/* static int fsus_truncate_core_ll(const char *gpath, */
-/* 				 struct dpr_xlate_data *dxdfrom, off_t newsize) */
-/* { */
-/* 	struct metadata_array md_arr = MD_ARR_INIT; */
-/* 	struct dpr_xlate_data dxdto = DXD_INIT; */
-/* 	FILE *fp; */
-/* 	char ll_revts_ll_reserved_file[PATH_MAX] = ""; */
-/* 	char from_ll_revts_ll_file[PATH_MAX] = ""; */
-/* 	char to_ll_revts_ll_file[PATH_MAX] = ""; */
-/* 	char ll_l_ll_file[PATH_MAX] = ""; */
-/* 	char ll_l_fm_lnk[PATH_MAX] = ""; */
-/* 	char ll_l_lnk[PATH_MAX] = ""; */
-/* 	char linkTarget[PATH_MAX] = ""; */
-/* 	char *buffer; */
-/* 	intmax_t buffer_sz; */
-/* 	int rv; */
-/* 	off_t oldsize; */
-/* 	off_t maxsize; */
-/* 	struct stat sb; */
+static int fsus_truncate_core_ll_fh(const char *gpath,
+				    struct dpr_xlate_data *dxdfrom,
+				    off_t newsize,
+				    struct fuse_file_info *orig_fi)
+{
+	struct fuse_file_info fi;
+	int rv;
+	DEBUGe('1') debug_msg
+	    (DPR_DATA,
+	     LOG_DIVIDER "%s() entry gpath=\"%s\" fd=\"%" PRIu64
+	     "\" newsize=\"%lld\"\n", __func__, gpath,
+	     ea_shadowFile_getValueOrKey(DPR_DATA, orig_fi), newsize);
 
-/* 	getLinkedlistLatestFMetadataLnk(ll_l_fm_lnk, *dxdfrom); */
-/* 	DEBUGe('2') debug_msg(DPR_DATA, */
-/* 			      "%s(): ll_l_fm_lnk=\"%s\"\n", */
-/* 			       __func__, ll_l_fm_lnk); */
-/* 	getLinkedlistLatestLnk(ll_l_lnk, *dxdfrom); */
+	// might need to reload?
+	if (ea_str_getValueForKey(DPR_DATA, gpath) != NULL) {
+		DEBUGe('2') debug_msg
+		    (DPR_DATA, LOG_DIVIDER
+		     " reload required for \"%s\")\n", gpath);
 
-/* 	buffer = md_malloc(&buffer_sz, ll_l_fm_lnk); */
-/* 	fp = md_load(buffer, buffer_sz, ll_l_fm_lnk); */
+		fi.flags = O_RDWR;
+		fsus_recreate(gpath, &fi);
+		fsus_open_shadow(gpath, &fi);
 
-/* 	getLinkTarget(linkTarget, DPR_DATA, ll_l_lnk); */
+		// have reopened a new file so no more need to reload at
+		// next write
+		ea_str_removeElementByValue(DPR_DATA, gpath);
+	}
+	// logging after so it's clear when the actual write happens,
+	// which is some time after entering the routine given we may
+	// need to reload
+	forensicLogChangesComing(DPR_DATA, WRITE_KEY, gpath);
 
-/* 	md_getIntoStructure(&md_arr, DPR_DATA, buffer); */
-/* 	*md_arr.deleted.value = '\0'; */
-/* 	*md_arr.not_via.value = '\0'; */
-/* 	*md_arr.renamed_from.value = '\0'; */
-/* 	*md_arr.renamed_to.value = '\0'; */
-/* 	md_unload(buffer); */
+	// no need to get fpath on this one, since I work from fi->fh not the gpath
+	DEBUGe('3') debug_msg
+	    (DPR_DATA,
+	     LOG_DIVIDER " fsus_truncate_core_ll_fh fd=\"%" PRIu64
+	     "\" size=\"%d\"\n", ea_shadowFile_getValueOrKey(DPR_DATA, orig_fi),
+	     newsize);
 
-/* 	dxd_copy(&dxdto, dxdfrom); */
+	rv = ftruncate(ea_shadowFile_getValueOrKey(DPR_DATA, orig_fi), newsize);
+	if (rv == -1)
+		dpr_error("fsus_truncate_core_ll_fh truncate");
 
-/* 	oldsize = 0; */
-/* 	if (linkTarget != '\0') { */
-/* 		DEBUGe('3') debug_msg(DPR_DATA, */
-/* 				      "%s(): linkTarget=\"%s\"\n", */
-/* 				       __func__, linkTarget); */
-/* 		getLinkedlistRevtsLinkedlistFile(from_ll_revts_ll_file, */
-/* 						 DPR_DATA, *dxdfrom); */
-/* 		incAndAssignRevision(dxdto.revision, linkTarget); */
-/* 		*dxdto.payload = '\0'; */
-/* 		*dxdto.payload_root = '\0'; */
-/* 		*md_arr.payload_loc.value = '\0'; */
-/* 		getLinkedlistRevisionTSFile(to_ll_revts_ll_file, dxdto); */
+	DEBUGe('1') debug_msg(DPR_DATA,
+			      "%s() completes, rv=\"%d\"\n\n", __func__, rv);
+	return rv;
+}
 
-/* 		if (lstat(from_ll_revts_ll_file, &sb) == -1) { */
-/* 			DEBUGi('2') debug_msg(dpr_data, */
-/* 					      "%s(): %s somehow not found\n", */
-/* 					      __func__, from_ll_revts_ll_file); */
-/* 			return -1; */
-/* 		} */
-/* 		oldsize = sb.st_size; */
-/* 	} */
-/* 	maxsize = 0; */
-/* 	if (newsize > maxsize) maxsize = newsize; */
-/* 	if (oldsize > maxsize) maxsize = oldsize; */
-/* 	getLinkedlistReservedFile(ll_revts_ll_reserved_file, dxdto); */
-
-/* 	// if the reserved file doesnt exist, open it */
-/* 	if (lstat(ll_revts_ll_reserved_file, &sb) == -1) { */
-/* 		DEBUGi('2') debug_msg(dpr_data, */
-/* 				      "%s(): %s creating reserved file\n", */
-/* 				      __func__, ll_revts_ll_reserved_file); */
-/* 		fp = fopen(ll_revts_ll_reserved_file, "w"); */
-/* 		if (fp == NULL) */
-/* 			fprintf(stderr, "  Unable to open \"%s\"\n", ll_revts_ll_reserved_file); */
-/* 		else */
-/* 			fclose(fp); */
-/* 	} */
-/* 	// the reserved file must exist so truncate it to max length */
-/* 	rv = truncate(ll_revts_ll_reserved_file, maxsize); */
-/* 	if (rv == -1) { */
-/* 		DEBUGe('3') debug_msg(DPR_DATA, */
-/* 				      "%d %s(): truncate failed file=\"%s\" maxsize=\"%d\" error=\"%s\"\n", */
-/* 				      getpid(), __func__, ll_revts_ll_reserved_file, */
-/* 				      maxsize, strerror(errno)); */
-/* 		return rv; */
-/* 	} */
-
-/* 	// create :latest/file */
-/* 	makeAndPopulateNewRevisionTSDir(DPR_DATA, gpath, &dxdto, */
-/* 					&md_arr, LINKEDLIST_EXTEND, */
-/* 					PAYLOAD_LOC_SRC_NEW); */
-
-/* 	// if the reserved file exists, unlink it */
-/* 	if (lstat(ll_revts_ll_reserved_file, &sb) != -1) { */
-/* 		DEBUGi('2') debug_msg(dpr_data, */
-/* 				      "%s(): %s unlinking reserved file\n", */
-/* 				      __func__, ll_revts_ll_reserved_file); */
-/* 		unlink(ll_revts_ll_reserved_file); */
-/* 	} */
-/* 	if (newsize != 0) { */
-/* 		DEBUGe('3') debug_msg(DPR_DATA, */
-/* 				      "%d %s(): cp from=\"%s\" to=\"%s\"\n", */
-/* 				      getpid(), __func__, from_ll_revts_ll_file, */
-/* 				      to_ll_revts_ll_file); */
-/* 		rv = cp(to_ll_revts_ll_file, from_ll_revts_ll_file); */
-/* 		DEBUGe('3') debug_msg(DPR_DATA, */
-/* 				      "%s(): copy rv=\"%d\"\n", */
-/* 				       __func__, rv); */
-/* 		if (newsize > 0) { */
-/* 			DEBUGe('3') debug_msg(DPR_DATA, */
-/* 					      "%s(): not truncate sz=\"%d\"\n", */
-/* 					       __func__, newsize, */
-/* 					      to_ll_revts_ll_file); */
-/* 			rv = truncate(to_ll_revts_ll_file, newsize); */
-/* 		} */
-
-/* 	} else { */
-/* 		getLinkedlistLatestLinkedlistFile(ll_l_ll_file, dxdto); */
-
-/* 		DEBUGe('3') debug_msg(DPR_DATA, */
-/* 				      "%s(): make zero len file \"%s\"\n", */
-/* 				       __func__, ll_l_ll_file); */
-
-/* 		fp = fopen(ll_l_ll_file, "w"); */
-/* 		if (fp == NULL) { */
-/* 			rv = -1; */
-/* 			dpr_error("dpr_truncate_core_ll creat"); */
-
-/* 		} else { */
-/* 			rv = fclose(fp); */
-/* 		} */
-/* 	} */
-/* 	mstrfree(&md_arr.others); */
-/* 	return rv; */
-/* } */
-
-static int fsus_truncate_core_ds(struct dpr_xlate_data *dxd, off_t newsize)
+static int fsus_truncate_core_ds(struct dpr_xlate_data *dxd, off_t newsize,
+				 struct fuse_file_info *fi)
 {
 	char paf[PATH_MAX];
 	int rv;
@@ -5013,7 +4937,7 @@ fsus_write(const char *gpath, const char *buf, size_t size,
 		    (DPR_DATA, LOG_DIVIDER
 		     " reload required for \"%s\")\n", gpath);
 
-		fsus_recreate(gpath);
+		fsus_recreate(gpath, fi);
 		fsus_open_shadow(gpath, fi);
 
 		// have reopened a new file so no more need to reload at
@@ -6510,7 +6434,7 @@ static int xmp_write_buf(const char *gpath, struct fuse_bufvec *buf,
 		    (DPR_DATA, LOG_DIVIDER
 		     " reload required for \"%s\")\n", gpath);
 
-		fsus_recreate(gpath);
+		fsus_recreate(gpath, fi);
 		fsus_open_shadow(gpath, fi);
 
 		// have reopened a new file so no more need to reload at
