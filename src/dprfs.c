@@ -3257,6 +3257,7 @@ dpr_cleanedXlateWholePath(struct dpr_xlate_data *dxd,
 				strcpy(dxd->relpath_sha256, "");
 				catSha256ToStr(dxd->relpath_sha256, dpr_data,
 					       dxd->relpath);
+				dxd->finalpath[0] = '\0';
 				misc_debugDxd(dpr_data, '3', dxd,
 					      " process further ", __func__);
 				dpr_xlateWholePath(dxd, dpr_data, rhs,
@@ -6135,25 +6136,54 @@ fsus_setxattr(const char *gpath, const char *name, const char *value,
 }
 
 /* Get extended attributes */
+// Note that getxattr normally returns -1 and errno on error, however, it can
+// also return <-1, and does. Without returning -ENODATA when errno=ENODATA,
+// ls will output ls: /var/lib/samba/usershares/gdrive: Operation not permitted
+// on stderr.
 static int
 fsus_getxattr(const char *gpath, const char *name, char *value, size_t size)
 {
+	const char *gpath2 = gpath + DPR_DATA->rootdir_len;
 	struct dpr_xlate_data dxd = DXD_INIT;
-	char paf[PATH_MAX] = "";
+	char ll_l_ll_file[PATH_MAX] = "";
+	char ll_name[PATH_MAX] = "";
+	int ierrno;
 	int rv;
 
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      LOG_DIVIDER "%s(gpath=\"%s\")\n",
-			      __func__, gpath);
-	dpr_xlateWholePath(&dxd, DPR_DATA, gpath, true, XWP_DEPTH_MAX,
+			      __func__, gpath2);
+	dpr_xlateWholePath(&dxd, DPR_DATA, gpath2, true, XWP_DEPTH_MAX,
 			   NULL, OBSERVE_ORIGINAL_DIR);
-	getLinkedlistLatestLinkedlistFile(paf, dxd);
-	DEBUGe('2') debug_msg(DPR_DATA, "%s(fpath=\"%s\")\n", __func__, paf);
 
-	rv = lgetxattr(paf, name, value, size);
-	if (rv == -1)
+	// in this situation, a getxattr against a linkedlist should visit the head file,
+	// a getxattr against anything else should visit the linkedlist name.
+	// An easy way to solve this is to store in dxd whether this is a linkedlist or
+	// not, then switch based on that
+	if (dxd.dprfs_filetype == DPRFS_FILETYPE_LL) {
+		getLinkedlistLatestLinkedlistFile(ll_l_ll_file, dxd);
+		rv = lgetxattr(ll_l_ll_file, name, value, size);
+		DEBUGe('2') debug_msg(DPR_DATA,
+				      "%s() ll fpath=\"%s\")\n",
+				      __func__, ll_l_ll_file);
+
+	} else {
+		getPafForOrdinaryFile(ll_name, dxd);
+		if (dxd.deleted == true)
+			*ll_name = '\0';
+		rv = lgetxattr(ll_name, name, value, size);
+		DEBUGe('2') debug_msg(DPR_DATA,
+				      "%s() !ll fpath=\"%s\")\n",
+				      __func__, ll_name);
+	}
+
+	ierrno = errno;
+	if (rv < 0) {
 		dpr_level_error('2', "fsus_getxattr lgetxattr");
-
+		if (ierrno == ENODATA) {
+			rv = ierrno;
+		}
+	}
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "%s completes, rv=\"%d\"\n\n", __func__, rv);
 	return rv;

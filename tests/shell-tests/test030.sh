@@ -5,8 +5,10 @@ TESTNAME='Cannot run same tests quickly even though listing is clear'
 
 function runTest()
 {
-    mkdir $GDRIVE$PATHTOFILE
-    touch $GDRIVE$PATHTOFILE/$FILE
+    echo "Making dir"
+    mkdir "${GDRIVE}${PATHTOFILE}"
+    echo "Touching file"
+    touch "${GDRIVE}${PATHTOFILE}/${FILE}"
 }
 
 function getTestResults()
@@ -53,12 +55,14 @@ function clearFS
     checkAndRemove "${RDRIVE}${PATHTOFILE}-"*
     checkAndRemove "${RDRIVE}${PATHTOFILE}"*
     checkAndRemove "${RDRIVE}${PATHTOFILE}"
+    sleep 0.999
 }
 
 # Main
 pretestWork
 runTest
 clearFS
+ls "/var/lib/samba/usershares/gdrive" -altr 2&>/dev/null
 runTest
 postTestWork
 getTestResults
