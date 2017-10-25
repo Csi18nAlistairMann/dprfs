@@ -17,6 +17,9 @@
 // 0 = compile to use rdrive only; 1 = compile for tdrive too
 #define USE_TDRIVE 1
 
+// 0 = do not support xattr code; 1 = do support them
+#define DPRFS_SUPPORT_XATTRS 0
+
 /* Add rolling_stats by default, 8 second periods, max 8(+8) history */
 #define RS_DELETE_FILE "/dev/shm/dprfs-rolling-stats-delete"
 #define RS_DELETE_SUPPORT 1

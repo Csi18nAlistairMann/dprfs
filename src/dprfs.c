@@ -1,6 +1,6 @@
 /*
   Data-Poisoning Resistant File System
-  Copyright (C) 2015-6 Alistair Mann <al+dprfs@pectw.net>
+  Copyright (C) 2015-7 Alistair Mann <al+dprfs@pectw.net>
 
   Large parts
   Copyright (C) 2001-2007  Miklos Szeredi <miklos@szeredi.hu>
@@ -6106,32 +6106,67 @@ static int fsus_access(const char *gpath, int mask)
 	return rv;
 }
 
+#if DPRFS_SUPPORT_XATTRS
 #ifdef HAVE_SETXATTR
 /* xattr operations are optional and can safely be left unimplemented */
+//
+// AM: I have implemented the xattr operations, but I'm left puzzled by
+// how they're meant to interact with the underlying filesystem. So,
+// fsus_getxattr seems to correctly pass through requests, returning
+// -ENODATA on my test system which does have xattrs enabled. But then
+// removexattr passes back EPERM which I understand to mean "This type
+// of object does not support extended attributes."
+// listxattr has not been used at all. The other three have been used
+// but create oddities especially with stderr output.
+//
+// So as of 25oct2017, have disabled them :-)
 static int
 fsus_setxattr(const char *gpath, const char *name, const char *value,
 	      size_t size, int flags)
 {
+	const char *gpath2 = gpath + DPR_DATA->rootdir_len;
 	struct dpr_xlate_data dxd = DXD_INIT;
-	char paf[PATH_MAX] = "";
+	char ll_l_ll_file[PATH_MAX] = "";
+	char ll_name[PATH_MAX] = "";
+	int ierrno;
 	int rv;
 
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      LOG_DIVIDER "%s(gpath=\"%s\")\n",
-			      __func__, gpath);
-	forensicLogChangesComing(DPR_DATA, SETXATTR_KEY, gpath);
-
-	dpr_xlateWholePath(&dxd, DPR_DATA, gpath, true, XWP_DEPTH_MAX,
+			      __func__, gpath2);
+	dpr_xlateWholePath(&dxd, DPR_DATA, gpath2, true, XWP_DEPTH_MAX,
 			   NULL, OBSERVE_ORIGINAL_DIR);
-	getLinkedlistLatestLinkedlistFile(paf, dxd);
-	DEBUGe('2') debug_msg(DPR_DATA, "%s(fpath=\"%s\")\n", __func__, paf);
 
-	rv = lsetxattr(paf, name, value, size, flags);
-	if (rv == -1)
-		dpr_error("fsus_setxattr lsetxattr");
+	// in this situation, a getxattr against a linkedlist should visit the head file,
+	// a getxattr against anything else should visit the linkedlist name.
+	// An easy way to solve this is to store in dxd whether this is a linkedlist or
+	// not, then switch based on that
+	if (dxd.dprfs_filetype == DPRFS_FILETYPE_LL) {
+		getLinkedlistLatestLinkedlistFile(ll_l_ll_file, dxd);
+		rv = lsetxattr(ll_l_ll_file, name, value, size, flags);
+		DEBUGe('2') debug_msg(DPR_DATA,
+				      "%s() ll fpath=\"%s\")\n",
+				      __func__, ll_l_ll_file);
 
+	} else {
+		getPafForOrdinaryFile(ll_name, dxd);
+		if (dxd.deleted == true)
+			*ll_name = '\0';
+		rv = lsetxattr(ll_l_ll_file, name, value, size, flags);
+		DEBUGe('2') debug_msg(DPR_DATA,
+				      "%s() !ll fpath=\"%s\")\n",
+				      __func__, ll_name);
+	}
+
+	ierrno = errno;
+	if (rv < 0) {
+		dpr_level_error('2', "fsus_setxattr lsetxattr");
+		if (ierrno == ENODATA) {
+			rv = ierrno;
+		}
+	}
 	DEBUGe('1') debug_msg(DPR_DATA,
-			      "%s() completes, rv=\"%d\"\n\n", __func__, rv);
+			      "%s completes, rv=\"%d\"\n\n", __func__, rv);
 	return rv;
 }
 
@@ -6192,53 +6227,110 @@ fsus_getxattr(const char *gpath, const char *name, char *value, size_t size)
 /* List extended attributes */
 static int fsus_listxattr(const char *gpath, char *list, size_t size)
 {
+	const char *gpath2 = gpath + DPR_DATA->rootdir_len;
 	struct dpr_xlate_data dxd = DXD_INIT;
-	char paf[PATH_MAX] = "";
+	char ll_l_ll_file[PATH_MAX] = "";
+	char ll_name[PATH_MAX] = "";
+	int ierrno;
 	int rv;
 
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      LOG_DIVIDER "%s(gpath=\"%s\")\n",
-			      __func__, gpath);
-	dpr_xlateWholePath(&dxd, DPR_DATA, gpath, true, XWP_DEPTH_MAX,
+			      __func__, gpath2);
+	dpr_xlateWholePath(&dxd, DPR_DATA, gpath2, true, XWP_DEPTH_MAX,
 			   NULL, OBSERVE_ORIGINAL_DIR);
-	getLinkedlistLatestLinkedlistFile(paf, dxd);
-	DEBUGe('2') debug_msg(DPR_DATA, "%s(fpath=\"%s\")\n", __func__, paf);
 
-	rv = llistxattr(paf, list, size);
-	if (rv == -1)
-		dpr_error("fsus_listxattr llistxattr");
+	// in this situation, a getxattr against a linkedlist should visit the head file,
+	// a getxattr against anything else should visit the linkedlist name.
+	// An easy way to solve this is to store in dxd whether this is a linkedlist or
+	// not, then switch based on that
+	if (dxd.dprfs_filetype == DPRFS_FILETYPE_LL) {
+		getLinkedlistLatestLinkedlistFile(ll_l_ll_file, dxd);
+		rv = llistxattr(ll_l_ll_file, list, size);
+		DEBUGe('2') debug_msg(DPR_DATA,
+				      "%s() ll fpath=\"%s\")\n",
+				      __func__, ll_l_ll_file);
 
+	} else {
+		getPafForOrdinaryFile(ll_name, dxd);
+		if (dxd.deleted == true)
+			*ll_name = '\0';
+		rv = llistxattr(ll_l_ll_file, list, size);
+		DEBUGe('2') debug_msg(DPR_DATA,
+				      "%s() !ll fpath=\"%s\")\n",
+				      __func__, ll_name);
+	}
+
+	ierrno = errno;
+	if (rv < 0) {
+		dpr_level_error('2', "fsus_listxattr llistxattr");
+		if (ierrno == ENODATA) {
+			rv = ierrno;
+		}
+	}
 	DEBUGe('1') debug_msg(DPR_DATA,
-			      "%s() completes, rv=\"%d\"\n\n", __func__, rv);
+			      "%s completes, rv=\"%d\"\n\n", __func__, rv);
 	return rv;
 }
 
 /* Remove extended attributes */
 static int fsus_removexattr(const char *gpath, const char *name)
 {
+	const char *gpath2 = gpath + DPR_DATA->rootdir_len;
 	struct dpr_xlate_data dxd = DXD_INIT;
-	char paf[PATH_MAX] = "";
+	char ll_l_ll_file[PATH_MAX] = "";
+	char ll_name[PATH_MAX] = "";
+	int ierrno;
 	int rv;
 
 	DEBUGe('1') debug_msg(DPR_DATA,
-			      LOG_DIVIDER "%s(gpath=\"%s\")\n",
-			      __func__, gpath);
-	forensicLogChangesComing(DPR_DATA, REMOVEXATTR_KEY, gpath);
-
-	dpr_xlateWholePath(&dxd, DPR_DATA, gpath, true, XWP_DEPTH_MAX,
+			      LOG_DIVIDER "%s(gpath=\"%s\" name=\"%s\")\n",
+			      __func__, gpath2, name);
+	dpr_xlateWholePath(&dxd, DPR_DATA, gpath2, true, XWP_DEPTH_MAX,
 			   NULL, OBSERVE_ORIGINAL_DIR);
-	getLinkedlistLatestLinkedlistFile(paf, dxd);
-	DEBUGe('2') debug_msg(DPR_DATA, "%s(fpath=\"%s\")\n", __func__, paf);
 
-	rv = lremovexattr(paf, name);
-	if (rv == -1)
-		dpr_error("fsus_removexattr lrmovexattr");
+	// in this situation, a getxattr against a linkedlist should visit the head file,
+	// a getxattr against anything else should visit the linkedlist name.
+	// An easy way to solve this is to store in dxd whether this is a linkedlist or
+	// not, then switch based on that
+	if (dxd.dprfs_filetype == DPRFS_FILETYPE_LL) {
+		getLinkedlistLatestLinkedlistFile(ll_l_ll_file, dxd);
+		rv = lremovexattr(ll_l_ll_file, name);
+		DEBUGe('2') debug_msg(DPR_DATA,
+				      "%s() ll fpath=\"%s\")\n",
+				      __func__, ll_l_ll_file);
 
+	} else {
+		getPafForOrdinaryFile(ll_name, dxd);
+		if (dxd.deleted == true)
+			*ll_name = '\0';
+		rv = lremovexattr(ll_l_ll_file, name);
+		DEBUGe('2') debug_msg(DPR_DATA,
+				      "%s() !ll fpath=\"%s\")\n",
+				      __func__, ll_name);
+	}
+
+	ierrno = errno;
+	if (rv < 0) {
+		DEBUGe('1') debug_msg(DPR_DATA,
+				      "%s rv=\"%d\"%d\"\n", __func__, rv,
+				      ierrno);
+		dpr_level_error('2', "fsus_removexattr lremovexattr");
+		if (ierrno == ENODATA) {
+			rv = ierrno;
+		}
+		if (ierrno == EPERM) {
+			DEBUGe('1') debug_msg(DPR_DATA,
+					      "%s EPERM FOUND rv=\"%d\"%d\"\n",
+					      __func__, rv, ierrno);
+		}
+	}
 	DEBUGe('1') debug_msg(DPR_DATA,
 			      "%s completes, rv=\"%d\"\n\n", __func__, rv);
 	return rv;
 }
 #endif				/* #ifdef HAVE_SETXATTR */
+#endif				/* #if DPRFS_SUPPORT_XATTRS */
 
 /////////////////////////////////////
 // f* functions (Samba doesnt seem to use)
@@ -6574,12 +6666,14 @@ static struct fuse_operations xmp_oper = {
 
 	/* housekeeping */
 	/* .init = xmp_init, // dprfs happy to use FUSE's own .init */
+#if DPRFS_SUPPORT_XATTRS
 #ifdef HAVE_SETXATTR
 	.setxattr = fsus_setxattr,
 	.getxattr = fsus_getxattr,
 	.listxattr = fsus_listxattr,
 	.removexattr = fsus_removexattr,
 #endif				/* #ifdef HAVE_SETXATTR */
+#endif				/* #if DPRFS_SUPPORT_XATTRS */
 
 	/* files */
 	.truncate = fsus_truncate,

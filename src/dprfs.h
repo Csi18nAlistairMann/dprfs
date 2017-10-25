@@ -224,6 +224,7 @@ static int fsus_fsync(const char *gpath, int datasync,
 		      struct fuse_file_info *fi);
 static int fsus_access(const char *gpath, int mask);
 static int fsus_mknod(const char *gpath, mode_t mode, dev_t dev);
+#if DPRFS_SUPPORT_XATTRS
 #ifdef HAVE_SETXATTR
 static int fsus_setxattr(const char *gpath, const char *name, const char *value,
 			 size_t size, int flags);
@@ -231,7 +232,8 @@ static int fsus_getxattr(const char *gpath, const char *name, char *value,
 			 size_t size);
 static int fsus_listxattr(const char *gpath, char *list, size_t size);
 static int fsus_removexattr(const char *gpath, const char *name);
-#endif
+#endif				/* #ifdef HAVE_SETXATTR */
+#endif				/* #if DPRFS_SUPPORT_XATTRS */
 static int fsus_recreate(const char *gpath, struct fuse_file_info *fi);
 static int fsus_truncate(const char *gpath, off_t newsize,
 			 struct fuse_file_info *fi);
