@@ -6,6 +6,7 @@ deleted, even as it appears to behave normally. DPRFS is that filesystem.
 
 To see it in action, 
 DPRFS vs Ransomware: https://www.youtube.com/watch?v=VsBAKeOQh78
+
 DPRFS vs mass deletes by a rogue user: https://www.youtube.com/watch?v=BeTdFSlHMJY
 
 The whitepaper can be read at https://github.com/Csi18nAlistairMann/dprfs/blob/master/docs/Ransomwareproof%20-%20a%20prototype.pdf
