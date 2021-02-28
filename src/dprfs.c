@@ -4356,6 +4356,8 @@ static int fsus_rename(const char *fulloldpath, const char *fullnewpath,
 	DEBUGe('2') debug_msg(DPR_DATA, " rename \"%s\" -> \"%s\"\n",
 			      fulloldpath, fullnewpath);
 
+	// hsbc
+	// rv = fsus_rename_core(fulloldpath, fullnewpath, flags, SERVERSIDE);
 	rv = fsus_rename_core(fulloldpath, fullnewpath, flags, USERSIDE);
 
 	DEBUGe('1') debug_msg(DPR_DATA,
@@ -5137,7 +5139,7 @@ static void backupDatastore(const char *gpath)
 			time_str_tm->tm_hour, time_str_tm->tm_min,
 			time_str_tm->tm_sec, (int)time_now.tv_usec);
 
-		strncat(destpaf, output, 11);
+		memcpy(destpaf, output, 11);
 		DEBUGe('2') debug_msg(DPR_DATA,
 				      "%s() backup path=\"%s\"\n",
 				      __func__, destpaf);
@@ -5259,12 +5261,18 @@ fsus_mkdir_core(struct dpr_state *dpr_data, const char *gpath,
 	dpr_xlateWholePath(&dxdorig, dpr_data, gpath, true,
 			   XWP_DEPTH_MAX, NULL, OBSERVE_ORIGINAL_DIR);
 	if (whatDoWithOriginalDir == SERVERSIDE) {
+		// hsbc
+		// DEBUGi('2') debug_msg(dpr_data, "20200612 OBSERVE \n#");
 		dpr_xlateWholePath(&dxdprev, dpr_data, gpath, true,
 				   XWP_DEPTH_MAX, NULL, OBSERVE_ORIGINAL_DIR);
 
 	} else {
+		// hsbc
+		// DEBUGi('2') debug_msg(dpr_data, "20200612 IGNORE/OBSERVE \n#");
+		// dpr_xlateWholePath(&dxdprev, dpr_data, gpath, true,
+		//		   XWP_DEPTH_MAX, NULL, IGNORE_ORIGINAL_DIR);
 		dpr_xlateWholePath(&dxdprev, dpr_data, gpath, true,
-				   XWP_DEPTH_MAX, NULL, IGNORE_ORIGINAL_DIR);
+				   XWP_DEPTH_MAX, NULL, OBSERVE_ORIGINAL_DIR);
 	}
 	if (dxdprev.deleted == true) {
 		strcpy(md_arr->deleted.value, "false");
@@ -6708,7 +6716,7 @@ static struct fuse_operations xmp_oper = {
  */
 static int
 getCommandLineIntoOptions(struct internal_options *options, int *argc,
-			  char *argv[])
+			  char *argv2[])
 {
 	int a;
 	int b;
@@ -6724,17 +6732,20 @@ getCommandLineIntoOptions(struct internal_options *options, int *argc,
 	/* -r = subdir=[xxx] */
 	b = 0;
 	for (a = 1; a < *argc; a++) {
-		if (strcmp(argv[a], "-D") == 0) {
+		if (strcmp(argv2[a], "-D") == 0) {
 			b = a;
-			options->debuglevel = (char)*argv[a + 1];
-			*argv[a] = '\0';
-			*argv[a + 1] = '\0';
+			options->debuglevel = (char)*argv2[a + 1];
+			*argv2[a] = '\0';
+			*argv2[a + 1] = '\0';
 
-		} else if (strcmp(argv[a], "-h") == 0) {
+		} else if (strcmp(argv2[a], "-h") == 0) {
 			goto usage;
 
-		} else if (strncmp(argv[a], "subdir=", 7) == 0) {
-			options->rdrive = (char *)realpath(argv[a] + 7, NULL);
+		} else if (strncmp(argv2[a], "subdir=", 7) == 0) {
+			options->rdrive = (char *)realpath(argv2[a] + 7, NULL);
+			argv2[a] = realloc(argv2[a], 7 + strlen(options->rdrive));
+			strcpy(argv2[a] + 7, (char *)options->rdrive);
+
 			if (options->rdrive == NULL) {
 				fprintf(stderr,
 					"Unable to access rdrive: %s\n",
@@ -6750,7 +6761,7 @@ getCommandLineIntoOptions(struct internal_options *options, int *argc,
 
 	if (b != 0) {
 		for (; b < *argc; b++) {
-			argv[b] = argv[b + 2];
+			argv2[b] = argv2[b + 2];
 		}
 		*argc -= 2;
 	}
@@ -6974,7 +6985,17 @@ static void multi_handler(int sig, siginfo_t * siginfo, void *context)
 int main(int argc, char *argv[])
 {
 	struct internal_options options = OPTIONS_INIT;
+	char *argv2[argc];
 	int rv;
+	int a;
+
+	// We run realpath(3) on the rdrive we're given. As this changes the
+	// arguments we pass to fuse, copy all those arguments to argv2 and
+	// change that instead
+	for (a = 0; a < argc; a++) {
+		argv2[a] = malloc(strlen(argv[a]) + 1);
+		strcpy(argv2[a], argv[a]);
+	}
 
 	umask(0);
 	// dprfs doesn't do any access checking on its own (the comment
@@ -6997,7 +7018,7 @@ int main(int argc, char *argv[])
 		perror("main calloc");
 		return -1;
 	}
-	if ((rv = getCommandLineIntoOptions(&options, &argc, argv)) != 0)
+	if ((rv = getCommandLineIntoOptions(&options, &argc, argv2)) != 0)
 		goto options_release;
 
 	dpr_data->debugfile = debug_open();
@@ -7048,7 +7069,7 @@ int main(int argc, char *argv[])
 #else				/* #if RUN_AS_UNIT_TESTS */
 	// turn over control to fuse
 	fprintf(stderr, "About to call fsus_main\n");
-	fuse_main(argc, argv, &xmp_oper, dpr_data);
+	fuse_main(argc, argv2, &xmp_oper, dpr_data);
 	fprintf(stderr, "%s() returning\n", __func__);
 #endif				/* #if RUN_AS_UNIT_TESTS #else */
 
@@ -7071,5 +7092,10 @@ int main(int argc, char *argv[])
 	fclose(dpr_data->debugfile);
 	fclose(dpr_data->forensiclogfile);
 	free(dpr_data);
+
+	for (a = 0; a < argc - 1; a++) {
+		free(argv2[a]);
+	}
+
 	return rv;
 }

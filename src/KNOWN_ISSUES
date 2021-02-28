@@ -1,0 +1,11 @@
+February 2021
+- A bug whereby a populated directory moved into a second sees the orginal
+content vanish in the gdrive but not the rdrive.
+    To replicate:
+	1. mkdir "initial"
+	2. echo "cobblers" >"initial/testfile"
+	3. cat "initial/testfile" should show "cobblers"
+	4. mkdir "second"
+	5. mv initial second
+	6. ls second/initial/ should show file but actually shows empty
+- Unit tests are inexhaustive

@@ -1,7 +1,7 @@
 /* User functions */
 int main(int argc, char *argv[]);
 static int getCommandLineIntoOptions(struct internal_options *options,
-				     int *argc, char *argv[]);
+				     int *argc, char *argv2[]);
 
 /* DPRFS Setup/Teardown */
 static int dpr_error(char *str);
